@@ -48,6 +48,8 @@ test('background or stopped sensors cannot appear live despite state heartbeats'
 test('UCM QR URL format preserves deployment subpath and replaces old params; one QR', () => {
   const url = controllerURL('https://example.com/egg/index.html?old=1#x', 'room-1');
   assert.equal(url, 'https://example.com/egg/index.html?room=room-1&player=A');
+  assert.equal(controllerURL('https://kkodamalab.github.io/slackline-game-egg/', 'room-1'),
+    'https://kkodamalab.github.io/slackline-game-egg/?room=room-1&player=A');
   assert.equal(isPhoneURL(url), true); assert.equal(isPhoneURL('http://localhost:4173/'), false);
   assert.throws(() => controllerURL('javascript:alert(1)', 'room'));
   let cleared = 0, generated;

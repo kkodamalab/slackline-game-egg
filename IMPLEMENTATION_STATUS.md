@@ -2,6 +2,8 @@
 
 確認日: 2026-09-21
 
+追記: 下記はローカル修正完了時点の記録です。その後ユーザーの公開指示により、実装commit `59d646f0cac709680f0104665f19963ac79be130` を `feat/pc-host-controller` へpushし、GitHub上とのSHA一致を確認しました。Pagesの初回有効化はプラン制約（非公開リポジトリ、HTTP 422）で拒否されました。公開設定は [PAGES_DEPLOYMENT.md](PAGES_DEPLOYMENT.md) を参照してください。
+
 ## GitHub / Gitの状態
 
 - Repository: https://github.com/kkodamalab/slackline-game-egg （非公開）

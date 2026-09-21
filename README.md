@@ -16,6 +16,8 @@
 
 ## 起動と配信
 
+GitHub Pagesの設定・公開先URL・スマホ実機確認は [PAGES_DEPLOYMENT.md](PAGES_DEPLOYMENT.md) を参照してください。公開元は `feat/pc-host-controller` のリポジトリ直下です。
+
 Node.js 20以降。外部パッケージのインストールやビルドは不要です。UCMと同じバージョンのPeerJS/QRCode.jsを `vendor/` に同梱しています。
 
 ```sh
