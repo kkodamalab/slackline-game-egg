@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f7f5e9"><meta name="apple-mobile-web-app-capable" content="yes">
+  <title>たまごを落とすな！ | Keep the Egg!</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <main>
+    <header><a class="brand" href="./">🥚 <span>KEEP THE EGG!</span></a><span class="tag">ちいさな バランスあそび</span></header>
+    <section id="setup">
+      <div class="intro"><span class="eyebrow">ゆらゆら、そーっと。</span><h1>たまごを<br><span>落とすな！</span></h1><p>まっすぐにして、<br class="mobile">たまごを落とさないでね！</p></div>
+      <div class="preview" aria-hidden="true"><div class="sun">✦</div><div class="egg mascot"><div class="face">•‿•</div></div><div class="mini-platform"></div><span class="sprout">✿</span><span class="preview-label">まんなかが、あんしん。</span></div>
+      <div class="setup-card">
+        <fieldset id="difficulty"><legend>むずかしさを えらぼう</legend><div class="choices"><button data-level="easy" aria-pressed="true">★ かんたん</button><button data-level="normal" aria-pressed="false">★★ ふつう</button><button data-level="hard" aria-pressed="false">★★★ むずかしい</button></div></fieldset>
+        <div class="input-choice"><label for="mode">あそびかた</label><select id="mode"><option value="sensor">スマホのかたむき</option><option value="test">PCテスト（キー・スライダー）</option></select></div>
+        <div class="preparation"><button id="connect" class="secondary">① センサーをつかう</button><button id="center" class="secondary" disabled>② まんなかにする</button></div>
+        <p id="status" class="status" role="status">スマホを固定して、①からはじめよう。</p>
+        <button id="start" class="primary" disabled>あそぶ！ <span>30びょう →</span></button>
+        <p class="safety">スマートフォンが落ちないよう、しっかり固定してください</p>
+      </div>
+    </section>
+    <section id="play" hidden>
+      <div class="hud"><span>あと <strong id="time">30</strong> びょう</span><span class="stars">★ <strong id="stars">0</strong></span><button id="pause" class="quiet">おやすみ</button></div>
+      <p id="message" class="game-message" role="status">そのまま！</p>
+      <div id="scene" class="scene"><div class="cloud cloud-one"></div><div class="cloud cloud-two"></div><div class="hill"></div><div id="platform" class="platform"><div id="zone" class="safe-zone"></div><div id="egg" class="egg"><div id="face" class="face">•‿•</div></div></div><div class="pivot"></div></div>
+      <div id="pause-panel" class="pause-panel" hidden><h2>ひとやすみ</h2><p id="pause-reason">準備ができたら、つづけよう。</p><button id="resume" class="primary">つづける</button><button id="reset-center" class="secondary">まんなかにして つづける</button><button id="quit" class="quiet">はじめにもどる</button></div>
+    </section>
+    <section id="result" hidden><div class="celebration">✦ 🐣 ✦</div><span class="eyebrow">よく がんばったね</span><h1>できた！</h1><p class="result-stars">★ × <span id="total-stars">0</span></p><p>たまごと なかよくなれたね。</p><button id="again" class="primary">もういっかい ↻</button><details id="research"><summary>おとなの方へ · 研究用データ</summary><p id="storage-note"></p><pre id="metrics"></pre><button id="samples-csv" class="secondary">記録CSV</button><button id="summary-csv" class="secondary">集計CSV</button></details></section>
+    <aside id="test-controls" hidden><label for="tilt">PC Test Mode <output id="tilt-value">0°</output></label><input id="tilt" type="range" min="-30" max="30" step="1" value="0"><p>← 左へ　→ 右へ　Space まっすぐ</p></aside>
+    <footer>ちいさな「できた！」を、ひとつずつ。</footer>
+  </main>
+  <script type="module" src="./src/app.js"></script>
+</body>
+</html>
