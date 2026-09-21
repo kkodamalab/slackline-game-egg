@@ -1,18 +1,74 @@
 import { config, difficulties } from './config.js';
-import { VBFInput, TiltInput, clamp } from './input.js';
+import { VBFInput, clamp } from './input.js';
+import { RemoteTiltInput } from './remote-input.js';
+import { PeerBus } from './peer-bus.js';
+import { controllerURL, isPhoneURL, renderQR } from './qr-connection.js';
 import { EggGame, toCSV } from './game.js';
 const $ = id => document.getElementById(id);
 let difficulty = 'easy', mode = 'sensor', phase = 'setup', game = null, paused = false;
 let needsCenter = false, accumulator = 0, previous = 0, wakeLock = null, requestingLock = false;
-let testAngle = 0, connectionVersion = 0, connectionTimer, trialMetadata;
+let testAngle = 0, trialMetadata, bus = null, room = '';
 const testInput = new VBFInput();
-const tiltInput = new TiltInput(() => {
-  needsCenter = true;
-  if (phase === 'play') pause('画面の向きが変わりました。まんなかを設定し直してください。');
-  else { $('status').textContent = '画面の向きが変わったよ。もういちど まんなかにしてね。'; $('start').disabled = true; }
-});
-const input = () => mode === 'test' ? testInput : tiltInput;
-const fresh = () => input().ready && (mode === 'test' || performance.now() - input().lastSample < config.staleMs);
+const remoteInput = new RemoteTiltInput();
+const input = () => mode === 'test' ? testInput : remoteInput;
+const fresh = () => mode === 'test' ? testInput.ready : remoteInput.fresh();
+const playable = () => fresh() && input().calibrated;
+const setText = (id, text) => { if ($(id).textContent !== text) $(id).textContent = text; };
+function connectionUI() {
+  if (mode !== 'sensor') return;
+  setText('connection-state', remoteInput.connected ? '● スマホ接続中' : '○ スマホをつないでください');
+  setText('sensor-state', remoteInput.fresh() ? '✓ センサーON' + (remoteInput.inputType === 'test' ? '（模擬入力）' : '') : '○ スマホでセンサーをONにしてください');
+  setText('center-state', remoteInput.calibrated ? '✓ まんなか設定済み' : '○ スマホで「まんなかにする」を押してください');
+  if (phase === 'setup') setText('status', playable() ? '準備できたよ！ PCで「あそぶ！」を押してね。' : 'スマホの接続・センサーON・まんなか設定がそろうと始められます。');
+}
+function updateQR() {
+  if (!room) return;
+  try {
+    const url = controllerURL($('controller-base').value, room);
+    $('controller-link').href = url; $('controller-link').hidden = false;
+    renderQR($('qr'), url);
+    setText('qr-note', isPhoneURL(url) ? 'スマホのカメラでQRコードを読み取ってください。' : 'このURLはスマホのセンサーに使えません。同じPCの接続テスト専用です。スマホ接続にはゲームを配信したHTTPS URLを指定してください。');
+    $('qr-note').classList.toggle('warning', !isPhoneURL(url));
+    setText('room-code', 'ROOM ' + room.slice(-6).toUpperCase());
+  } catch (error) { $('qr').replaceChildren(); $('controller-link').hidden = true; setText('qr-note', error.message); }
+}
+function createHost() {
+  bus?.close(); remoteInput.reset(); room = ''; $('qr').replaceChildren(); $('controller-link').hidden = true;
+  setText('qr-note', '接続用のQRコードを準備しています…'); setText('room-code', '');
+  try {
+    bus = new PeerBus('', 'host');
+    bus.onReady = id => { room = id; updateQR(); };
+    bus.onPresence = (role, connected) => {
+      if (role !== 'A') return;
+      remoteInput.setConnected(connected);
+      if (!connected && phase === 'play') pause('スマホとの接続が切れました。再接続を待ってから、つづけよう。');
+      connectionUI();
+    };
+    bus.onInput = (role, packet) => {
+      if (role !== 'A' || mode !== 'sensor') return;
+      if (!remoteInput.receive(packet)) return;
+      needsCenter = !remoteInput.calibrated;
+      const calibrationKey = `${remoteInput.sessionId}:${remoteInput.calibrationId}:${remoteInput.baselineAngle}`;
+      if (phase === 'play' && game && trialMetadata.controllerCalibrationKey !== calibrationKey) {
+        trialMetadata.controllerCalibrationKey = calibrationKey;
+        (trialMetadata.recalibrations ??= []).push({ timestamp: game.elapsed, baselineAngle: remoteInput.baselineAngle, calibrationId: remoteInput.calibrationId });
+        pause(remoteInput.calibrated ? 'スマホのまんなか設定が変わりました。準備ができたら、つづけよう。' : 'スマホで「まんなかにする」を押してください。');
+      }
+      connectionUI();
+    };
+    bus.onConnectionError = () => {
+      if (!room) setText('qr-note', '接続サービスに到達できません。「接続を作り直す」で再試行してください。');
+    };
+  } catch (error) { setText('qr-note', error.message); }
+}
+$('controller-base').value = location.origin + location.pathname;
+$('update-qr').addEventListener('click', updateQR);
+$('new-room').addEventListener('click', createHost);
+createHost();
+const feedbackTimer = setInterval(() => {
+  if (bus && mode === 'sensor') bus.send({ type: 'feedback', payload: { phase, paused, canStart: playable() } });
+}, 500);
+window.addEventListener('pagehide', () => { clearInterval(feedbackTimer); bus?.close(); });
 function show(next) {
   phase = next;
   for (const name of ['setup', 'play', 'result']) $(name).hidden = name !== next;
@@ -36,13 +92,14 @@ function pause(reason) {
   if (phase !== 'play') return;
   paused = true; accumulator = 0; releaseWakeLock();
   $('pause-panel').hidden = false; $('pause-reason').textContent = reason;
-  $('reset-center').hidden = !needsCenter;
-  $('resume').hidden = needsCenter;
+  $('reset-center').hidden = mode !== 'test' || !needsCenter;
+  $('resume').hidden = false;
 }
 function resume(recenter = false) {
   if (!fresh()) { $('pause-reason').textContent = 'センサーの入力を待っています。端末とブラウザーの許可を確認してください。'; return; }
-  if (recenter) { input().calibrate(); needsCenter = false; }
-  if (needsCenter) return;
+  if (recenter && mode === 'test') { testInput.calibrate(); needsCenter = false; }
+  if (!input().calibrated) { $('pause-reason').textContent = 'スマホで「まんなかにする」を押してください。'; return; }
+  needsCenter = false;
   paused = false; previous = performance.now(); accumulator = 0; $('pause-panel').hidden = true;
   acquireWakeLock();
 }
@@ -50,36 +107,25 @@ function prepare() {
   game = null; paused = false; releaseWakeLock(); show('setup');
   $('pause-panel').hidden = true;
   $('status').textContent = '固定をたしかめて、まんなかにしてね。';
-  input().calibrated = false; $('start').disabled = true;
+  if (mode === 'test') testInput.calibrated = false;
+  $('start').disabled = !playable();
   $('research').open = false;
 }
 $('mode').addEventListener('change', () => {
-  connectionVersion++; clearTimeout(connectionTimer); tiltInput.disconnect(); tiltInput.reset();
   mode = $('mode').value; needsCenter = false;
-  $('connect').disabled = mode === 'test'; $('start').disabled = true;
+  $('phone-connection').hidden = mode !== 'sensor';
+  $('test-preparation').hidden = mode !== 'test';
   $('test-controls').hidden = mode !== 'test';
-  if (mode === 'test') { testAngle = 0; $('tilt').value = 0; testInput.reset(); testInput.push(0); }
-  $('status').textContent = mode === 'test' ? 'キーやスライダーで動かして、② まんなかにしてね。' : 'スマホを固定して、①からはじめよう。';
-});
-$('connect').addEventListener('click', async () => {
-  const version = ++connectionVersion;
-  $('connect').disabled = true;
-  $('status').textContent = 'センサーを待っています…';
-  try {
-    await tiltInput.connect();
-    if (version !== connectionVersion) { tiltInput.disconnect(); return; }
-    $('status').textContent = '入力を待っています。受信したら②を押してね。';
-    connectionTimer = setTimeout(() => {
-      if (version !== connectionVersion) return;
-      $('status').textContent = fresh() ? '準備できたよ。② まんなかにしてね。' : '入力が届きません。HTTPS・センサー許可を確認するか、PCテストを選んでね。';
-      $('connect').disabled = false;
-    }, 3000);
-  } catch (error) { if (version === connectionVersion) { $('status').textContent = error.message; $('connect').disabled = false; } }
+  if (mode === 'test') {
+    bus?.close(); bus = null; remoteInput.reset();
+    testAngle = 0; $('tilt').value = 0; testInput.reset(); testInput.push(0);
+    $('status').textContent = 'キーやスライダーで動かして、まんなかにしてね。';
+  } else createHost();
+  $('start').disabled = !playable();
 });
 $('center').addEventListener('click', () => {
-  if (!fresh()) return;
-  input().calibrate(); needsCenter = false; $('start').disabled = false;
-  clearTimeout(connectionTimer); $('connect').disabled = mode === 'test';
+  if (mode !== 'test' || !fresh()) return;
+  testInput.calibrate(); needsCenter = false; $('start').disabled = false;
   $('status').textContent = 'ここが まんなか！ あそぶ準備ができたよ。';
 });
 document.querySelectorAll('[data-level]').forEach(button => button.addEventListener('click', () => {
@@ -89,7 +135,9 @@ document.querySelectorAll('[data-level]').forEach(button => button.addEventListe
 $('start').addEventListener('click', () => {
   if (!fresh() || !input().calibrated) { $('status').textContent = '入力を確認して、まんなかを設定してね。'; return; }
   game = new EggGame(difficulty); paused = false; needsCenter = false;
-  trialMetadata = { startedAt: new Date().toISOString(), inputMode: mode, baselineAngle: input().baselineAngle,
+  trialMetadata = { startedAt: new Date().toISOString(), inputMode: mode === 'sensor' ? 'remote-' + remoteInput.inputType : 'test', baselineAngle: input().baselineAngle,
+    roomId: mode === 'sensor' ? room : null, calibrationId: mode === 'sensor' ? remoteInput.calibrationId : null,
+    controllerCalibrationKey: mode === 'sensor' ? `${remoteInput.sessionId}:${remoteInput.calibrationId}:${remoteInput.baselineAngle}` : null,
     filterAlpha: config.alpha, sampleInterval: config.sampleInterval, difficulty, settings: { ...difficulties[difficulty] } };
   accumulator = 0; previous = performance.now(); show('play'); acquireWakeLock(); render();
 });
@@ -135,7 +183,7 @@ function finish() {
   $('metrics').textContent = JSON.stringify({ ...trialMetadata, ...summary }, null, 2);
   try {
     localStorage.setItem('keep-the-egg:last-trial', JSON.stringify({ metadata: trialMetadata, summary, samples: game.samples }));
-    $('storage-note').textContent = '最新の1試行をこのブラウザー内に保存しました。外部には送信しません。必要な記録はCSVで保存してください。';
+    $('storage-note').textContent = '最新の1試行をこのブラウザー内に保存しました。試行記録は外部保存しません。スマホの傾きはDataChannel経由でこのPCへ届きます。必要な記録はCSVで保存してください。';
   } catch { $('storage-note').textContent = 'ブラウザー内に保存できませんでした。画面を閉じる前にCSVを保存してください。'; }
 }
 function downloadCSV(name, rows) {
@@ -147,10 +195,12 @@ $('samples-csv').addEventListener('click', () => downloadCSV('keep-the-egg-sampl
 $('summary-csv').addEventListener('click', () => downloadCSV('keep-the-egg-summary.csv', [{ ...trialMetadata, settings: JSON.stringify(trialMetadata.settings), recalibrations: JSON.stringify(trialMetadata.recalibrations ?? []), ...game.summary() }]));
 function frame(now) {
   if (mode === 'test') { testInput.push(testAngle, now); $('tilt-value').textContent = `${testAngle}°`; }
-  if (phase === 'setup') { $('center').disabled = !fresh(); $('start').disabled = !fresh() || !input().calibrated; }
+  connectionUI();
+  if (phase === 'setup') { $('center').disabled = mode !== 'test' || !fresh(); $('start').disabled = !playable(); }
   if (phase === 'play' && !paused) {
     const dt = (now - previous) / 1000;
-    if (!fresh()) pause('センサーの入力がとぎれました。入力が戻ったら、つづけよう。');
+    if (!fresh()) pause('スマホの入力がとぎれました。接続とセンサーを確認してから、つづけよう。');
+    else if (!input().calibrated) pause('スマホで「まんなかにする」を押してください。');
     else if (dt > 0.5) pause('少しおやすみしました。準備ができたら、つづけよう。');
     else {
       accumulator += Math.max(0, dt);

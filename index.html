@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
-  <main>
+  <main id="host-app">
     <header><a class="brand" href="./">🥚 <span>KEEP THE EGG!</span></a><span class="tag">ちいさな バランスあそび</span></header>
     <section id="setup">
       <div class="intro"><span class="eyebrow">ゆらゆら、そーっと。</span><h1>たまごを<br><span>落とすな！</span></h1><p>まっすぐにして、<br class="mobile">たまごを落とさないでね！</p></div>
@@ -15,8 +15,17 @@
       <div class="setup-card">
         <fieldset id="difficulty"><legend>むずかしさを えらぼう</legend><div class="choices"><button data-level="easy" aria-pressed="true">★ かんたん</button><button data-level="normal" aria-pressed="false">★★ ふつう</button><button data-level="hard" aria-pressed="false">★★★ むずかしい</button></div></fieldset>
         <div class="input-choice"><label for="mode">あそびかた</label><select id="mode"><option value="sensor">スマホのかたむき</option><option value="test">PCテスト（キー・スライダー）</option></select></div>
-        <div class="preparation"><button id="connect" class="secondary">① センサーをつかう</button><button id="center" class="secondary" disabled>② まんなかにする</button></div>
-        <p id="status" class="status" role="status">スマホを固定して、①からはじめよう。</p>
+        <section id="phone-connection" class="phone-connection">
+          <h2>スマホをつなぐ</h2><p class="connection-help">PCがゲーム画面。スマホはラインのセンサー。</p>
+          <div id="qr" aria-label="スマホController接続QRコード"></div>
+          <p id="room-code" class="room-code"></p>
+          <a id="controller-link" target="_blank" rel="noopener" hidden>Controllerの接続URLを開く</a>
+          <p id="qr-note" class="status">接続用のQRコードを準備しています…</p>
+          <div class="connection-checks"><p id="connection-state" role="status">○ スマホをつないでください</p><p id="sensor-state">○ スマホでセンサーをONにしてください</p><p id="center-state">○ スマホで「まんなかにする」を押してください</p></div>
+          <details class="connection-options"><summary>接続設定・つなぎ直し</summary><label for="controller-base">スマホから開けるゲームのHTTPS URL</label><input type="url" id="controller-base"><button id="update-qr" class="secondary">URLをQRに反映</button><button id="new-room" class="quiet">接続を作り直す</button></details>
+        </section>
+        <div id="test-preparation" class="preparation" hidden><button id="center" class="secondary" disabled>まんなかにする（PCテスト）</button></div>
+        <p id="status" class="status" role="status">スマホをつないで、センサーをONにしてね。</p>
         <button id="start" class="primary" disabled>あそぶ！ <span>30びょう →</span></button>
         <p class="safety">スマートフォンが落ちないよう、しっかり固定してください</p>
       </div>
@@ -31,6 +40,20 @@
     <aside id="test-controls" hidden><label for="tilt">PC Test Mode <output id="tilt-value">0°</output></label><input id="tilt" type="range" min="-30" max="30" step="1" value="0"><p>← 左へ　→ 右へ　Space まっすぐ</p></aside>
     <footer>ちいさな「できた！」を、ひとつずつ。</footer>
   </main>
-  <script type="module" src="./src/app.js"></script>
+  <main id="controller-app" hidden>
+    <span class="eyebrow">SMARTPHONE CONTROLLER</span><h1>🥚 たまごを落とすな！</h1>
+    <p class="controller-instructions">スマホをラインに<br><strong>しっかり固定してください</strong></p>
+    <button id="controller-enable" class="primary" disabled>センサーをON</button>
+    <p id="controller-connection" class="controller-connection" role="status">○ PCにつないでいます…</p>
+    <p id="controller-sensor-state" class="status" role="status">センサーをONにしてから、まんなかを設定してください。</p>
+    <p>現在のかたむき</p><div id="controller-gauge" class="controller-gauge" role="meter" aria-label="現在のかたむき" aria-valuemin="-30" aria-valuemax="30" aria-valuenow="0"><span class="gauge-center"></span><span id="controller-indicator"></span></div>
+    <button id="controller-center" class="secondary" disabled>まんなかにする</button>
+    <p id="controller-host-state" class="status">準備ができたら、PCの画面を見てください。</p>
+    <button id="controller-retry" class="quiet">PCにつなぎ直す</button>
+    <aside id="controller-test" hidden><strong>開発用・模擬センサー入力</strong><p>実センサーではありません。PCにも模擬入力として記録します。</p><label for="controller-test-tilt">模擬傾き</label><input id="controller-test-tilt" type="range" min="-30" max="30" step="1" value="0"></aside>
+  </main>
+  <script src="./vendor/peerjs-1.5.5.min.js"></script>
+  <script src="./vendor/qrcode-1.0.0.min.js"></script>
+  <script type="module" src="./src/bootstrap.js"></script>
 </body>
 </html>
