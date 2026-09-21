@@ -17,6 +17,7 @@ function show(next) {
   phase = next;
   for (const name of ['setup', 'play', 'result']) $(name).hidden = name !== next;
   $('test-controls').hidden = mode !== 'test' || next === 'result';
+  window.scrollTo(0, 0);
 }
 async function acquireWakeLock() {
   if (wakeLock || requestingLock || phase !== 'play' || paused || document.hidden) return;
