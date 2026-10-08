@@ -13,6 +13,8 @@
     "node": ">=20"
   },
   "devDependencies": {
+    "jsqr": "^1.4.0",
+    "peer": "^1.0.2",
     "playwright": "^1.64.0"
   }
 }

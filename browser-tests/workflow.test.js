@@ -92,7 +92,7 @@ test('MediaPipe failure offers input fallback and closes camera',async()=>{
 test('GiBoard permission in click, rotation and stale input safely pause',async()=>{
  const page=await pageFor();try{
  await page.evaluate(()=>{window.DeviceOrientationEvent.requestPermission=async()=>{window.permissionCalled=true;return 'granted';};});
- await page.click('#connect');assert.equal(await page.evaluate(()=>window.permissionCalled),true);
+ await page.selectOption('#mode','sensor');await page.click('#connect');assert.equal(await page.evaluate(()=>window.permissionCalled),true);
  await page.evaluate(()=>window.dispatchEvent(new DeviceOrientationEvent('deviceorientation',{beta:0,gamma:0})));
  await page.clock.runFor(32);await page.click('#center');await page.click('#start');await page.clock.runFor(2600);
  assert.equal(await page.locator('#pause-panel').isVisible(),true);

@@ -2,15 +2,16 @@
 <html lang="ja">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="seesaw-release" content="20261009-phone-restoration">
   <meta name="theme-color" content="#f7f5e9"><meta name="apple-mobile-web-app-capable" content="yes">
   <title>シーソーゲーム | 〇〇を落とすな！</title>
-  <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./styles.css?v=20261009-phone-restoration">
 </head>
 <body>
-  <main>
+  <main id="host-app">
     <header><a class="brand" href="./"><span>シーソーゲーム</span></a><span class="tag">ちいさな バランスあそび</span></header>
     <section id="setup">
-      <div class="intro"><span class="eyebrow">ゆらゆら、そーっと。</span><h1><small>シーソーゲーム</small><br><span id="object-title">たまご</span>を<br>落とすな！</h1><p id="intro-message">まっすぐにして、たまごを守ろう！</p></div>
+      <div class="intro"><span class="eyebrow">ゆらゆら、そーっと。</span><h1 class="game-title">シーソーゲーム</h1><h2 id="object-title" class="object-title">たまごを落とすな！</h2><p id="intro-message">まっすぐにして、たまごを守ろう！</p></div>
       <div class="preview" aria-hidden="true"><div class="sun">✦</div><div id="setup-object" class="game-object mascot"></div><div class="mini-platform"></div><span class="sprout">✿</span><span class="preview-label">まんなかが、あんしん。</span></div>
       <div class="setup-card">
         <fieldset><legend>1. どんな あそび？</legend><div class="mode-cards choices"><button data-game-mode="KEEP" aria-pressed="true">落とさず守ろう<small>30びょう</small></button><button data-game-mode="STAR" aria-pressed="false">星を集めよう<small>30びょう</small></button><button data-game-mode="SURVIVAL" aria-pressed="false">どこまで耐える？<small>さいだい60びょう</small></button></div></fieldset>
@@ -30,7 +31,7 @@
           </div><p id="image-status" role="status"></p>
           <button id="discard-images" class="quiet">写真と作品をすべて消す</button>
         </div>
-        <div class="input-choice"><label for="mode">3. どうやって動かす？</label><select id="mode"><option value="sensor">GiBoard TILT（スマホのかたむき）</option><option value="body">BODY AXIS（からだ・カメラ）</option><option value="test">PC TEST（キー・スライダー）</option></select></div>
+        <div class="input-choice"><label for="mode">3. どうやって動かす？</label><select id="mode" disabled><option value="phone">PHONE CONTROLLER（PC＋スマホ）</option><option value="sensor">LOCAL TILT（この端末のかたむき）</option><option value="body">BODY AXIS（からだ・カメラ）</option><option value="test">PC TEST（キー・スライダー）</option></select></div>
         <fieldset id="difficulty"><legend>4. むずかしさ</legend><div class="choices"><button data-level="easy" aria-pressed="true">★ かんたん</button><button data-level="normal" aria-pressed="false">★★ ふつう</button><button data-level="hard" aria-pressed="false">★★★ むずかしい</button></div></fieldset>
         <details id="staff"><summary>スタッフ用 · カメラと入力設定</summary>
           <label><input id="preview-visible" type="checkbox" checked>カメラプレビュー</label>
@@ -42,7 +43,16 @@
           <output id="confidence">検出Confidence: —</output>
           <p>肩と腰が映る距離で、カメラを正面・水平に置きます。プレビューの鏡表示と入力の反転は別の設定です。</p>
         </details>
-        <div class="preparation"><button id="connect" class="secondary">① センサーをつかう</button><button id="center" class="secondary" disabled>② まんなかにする</button></div>
+        <section id="phone-connection" class="phone-connection">
+          <h2>スマホをつなぐ</h2><p class="connection-help">PCがゲーム画面。スマホはラインのセンサー。</p>
+          <details id="qr-panel" open><summary>QR・ROOM・接続URL</summary><div id="qr" aria-label="スマホController接続QRコード"></div>
+          <p id="room-code" class="room-code"></p>
+          <a id="controller-link" target="_blank" rel="noopener" hidden></a>
+          <p id="qr-note" class="status">接続用のQRコードを準備しています…</p>
+          </details><div class="connection-checks"><p id="connection-state" role="status">○ スマホをつないでください</p><p id="sensor-state">○ スマホでセンサーをONにしてください</p><p id="center-state">○ スマホで「まんなかにする」を押してください</p></div>
+          <details class="connection-options"><summary>接続設定・つなぎ直し</summary><label for="controller-base">スマホから開けるゲームのHTTPS URL</label><input type="url" id="controller-base"><button id="update-qr" class="secondary">URLをQRに反映</button><button id="new-room" class="quiet">ROOMを作り直す</button></details>
+        <button id="phone-retry" class="secondary">再接続</button><button id="phone-center" class="secondary" disabled>スマホの中央姿勢を設定</button></section>
+        <div id="local-preparation" class="preparation" hidden><button id="connect" class="secondary">① センサーをつかう</button><button id="center" class="secondary" disabled>② まんなかにする</button></div>
         <p id="status" class="status" role="status">スマホを固定して、①からはじめよう。</p>
         <button id="start" class="primary" disabled>あそぶ！ <span><span id="duration-label">30びょう</span> →</span></button>
         <p class="safety">スマートフォンが落ちないよう、しっかり固定してください</p>
@@ -60,6 +70,20 @@
     <aside id="test-controls" hidden><label for="tilt">PC Test Mode <output id="tilt-value">0°</output></label><input id="tilt" type="range" min="-30" max="30" step="1" value="0"><p>← 左へ　→ 右へ　Space まっすぐ</p></aside>
     <footer>ちいさな「できた！」を、ひとつずつ。</footer>
   </main>
-  <script type="module" src="./src/app.js"></script>
+  <main id="controller-app" hidden>
+    <span class="eyebrow">SMARTPHONE CONTROLLER</span><h1>スマホController</h1><p id="controller-title">シーソーゲーム</p>
+    <p class="controller-instructions">スマホをラインに<br><strong>しっかり固定してください</strong></p>
+    <button id="controller-enable" class="primary" disabled>センサーをON</button>
+    <p id="controller-connection" class="controller-connection" role="status">○ PCにつないでいます…</p>
+    <p id="controller-sensor-state" class="status" role="status">センサーをONにしてから、まんなかを設定してください。</p>
+    <p>現在のかたむき</p><div id="controller-gauge" class="controller-gauge" role="meter" aria-label="現在のかたむき" aria-valuemin="-30" aria-valuemax="30" aria-valuenow="0"><span class="gauge-center"></span><span id="controller-indicator"></span></div>
+    <button id="controller-center" class="secondary" disabled>まんなかにする</button>
+    <p id="controller-host-state" class="status">準備ができたら、PCの画面を見てください。</p>
+    <button id="controller-retry" class="quiet">PCにつなぎ直す</button>
+    <aside id="controller-test" hidden><strong>開発用・模擬センサー入力</strong><p>実センサーではありません。PCにも模擬入力として記録します。</p><label for="controller-test-tilt">模擬傾き</label><input id="controller-test-tilt" type="range" min="-30" max="30" step="1" value="0"></aside>
+  </main>
+  <script src="./vendor/peerjs-1.5.5.min.js"></script>
+  <script src="./vendor/qrcode-1.0.0.min.js"></script>
+  <script type="module" src="./src/bootstrap.js?v=20261009-phone-restoration"></script>
 </body>
 </html>
