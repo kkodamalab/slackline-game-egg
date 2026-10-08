@@ -1,6 +1,9 @@
 // Compare the real HTTPS deployment and its module graph with this checkout.
 // No browser cache assumptions and no execution of downloaded JavaScript.
 import { readFile } from 'node:fs/promises';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+const run = promisify(execFile);
 const root = new URL('../', import.meta.url);
 const base = new URL('https://kkodamalab.github.io/slackline-game-egg/');
 const normalize = text => text.replaceAll('\r\n', '\n');
@@ -8,9 +11,17 @@ const checked = new Set();
 async function verify(url, file) {
   if (checked.has(url.href)) return;
   checked.add(url.href);
-  const response = await fetch(url, { signal: AbortSignal.timeout(15000) });
-  if (!response.ok) throw new Error(`${response.status}: ${url}`);
-  const text = await response.text();
+  let text;
+  if (process.env.HTTPS_PROXY || process.env.HTTP_PROXY) {
+    // Use the existing proxy and verified TLS without exposing proxy credentials.
+    const result = await run(process.platform === 'win32' ? 'curl.exe' : 'curl',
+      ['--fail', '--silent', '--show-error', '--max-time', '15', url.href], { maxBuffer: 2 * 1024 * 1024 });
+    text = result.stdout;
+  } else {
+    const response = await fetch(url, { signal: AbortSignal.timeout(15000) });
+    if (!response.ok) throw new Error(`${response.status}: ${url}`);
+    text = await response.text();
+  }
   const expected = await readFile(new URL(file, root), 'utf8');
   if (normalize(text) !== normalize(expected)) throw new Error(`Published file differs from checkout: ${file}`);
   console.log(`OK ${url}`);
