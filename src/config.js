@@ -8,3 +8,24 @@ export const difficulties = Object.freeze({
   normal: { label: '★★ ふつう', safeZoneWidth: 0.36, gravity: 2.8, damping: 2.2, centering: 1.0, maxSpeed: 0.8 },
   hard: { label: '★★★ むずかしい', safeZoneWidth: 0.23, gravity: 4, damping: 1.8, centering: 0.8, maxSpeed: 1.1 },
 });
+
+export const gameModes = Object.freeze({
+  KEEP: { label: '落とさず守ろう', duration: 30 },
+  STAR: { label: '星を集めよう', duration: 30 },
+  SURVIVAL: { label: 'どこまで耐えられる？', duration: 60 },
+});
+export const objects = Object.freeze({
+  EGG: { label: 'たまご', gravity: 1, damping: 1, speed: 1 },
+  BALL: { label: 'ボール', gravity: 1.2, damping: .85, speed: 1.15 },
+  APPLE: { label: 'りんご', gravity: .9, damping: 1.1, speed: .9 },
+  CHICK: { label: 'ひよこ', gravity: .65, damping: 1.2, speed: .7 },
+  MY_FACE: { label: 'じぶんの顔', gravity: 1, damping: 1, speed: 1 },
+  MY_DRAWING: { label: 'じぶんの絵', gravity: 1, damping: 1, speed: 1 },
+  MY_PHOTO: { label: 'すきな写真', gravity: 1, damping: 1, speed: 1 },
+});
+export function physicsSettings(difficulty, objectType) {
+  const d = difficulties[difficulty], o = objects[objectType];
+  if (!d || !o) throw new Error('Unknown difficulty or object');
+  return { ...d, gravity: d.gravity * o.gravity, damping: d.damping * o.damping,
+    maxSpeed: Math.min(1.2, d.maxSpeed * o.speed) };
+}

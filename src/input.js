@@ -38,7 +38,7 @@ export class VBFInput {
 export class TiltInput extends VBFInput {
   constructor(onRotate = () => {}) {
     super();
-    this.onRotate = onRotate;
+    this.onRotate = onRotate; this.generation = 0;
     this.onSample = event => {
       const angle = screenRoll(event.beta, event.gamma, screen.orientation?.angle ?? window.orientation ?? 0);
       if (angle !== null) this.push(angle);
@@ -46,18 +46,20 @@ export class TiltInput extends VBFInput {
     this.rotation = () => { this.reset(); this.onRotate(); };
   }
   async connect() {
-    this.disconnect();
+    this.disconnect(); const generation = this.generation;
     if (!window.isSecureContext) throw new Error('スマホではHTTPSのページで開いてください。');
     const api = window.DeviceOrientationEvent;
     if (!api) throw new Error('この端末ではセンサーを使えません。PCテストを選んでください。');
     if (typeof api.requestPermission === 'function' && await api.requestPermission() !== 'granted') {
       throw new Error('センサーが許可されませんでした。ブラウザーの設定を確認してください。');
     }
+    if (generation !== this.generation) return;
     window.addEventListener('deviceorientation', this.onSample);
     if (screen.orientation?.addEventListener) screen.orientation.addEventListener('change', this.rotation);
     else window.addEventListener('orientationchange', this.rotation);
   }
   disconnect() {
+    this.generation++;
     window.removeEventListener('deviceorientation', this.onSample);
     screen.orientation?.removeEventListener?.('change', this.rotation);
     window.removeEventListener('orientationchange', this.rotation);

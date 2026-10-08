@@ -1,11 +1,14 @@
-import { config, difficulties } from './config.js';
+import { config, difficulties, gameModes, physicsSettings } from './config.js';
 import { clamp } from './input.js';
 
-export class EggGame {
-  constructor(difficulty = 'easy') {
+export class SeesawGame {
+  constructor(difficulty = 'easy', { gameMode = 'STAR', objectType = 'EGG', inputMode = 'sensor' } = {}) {
     if (!difficulties[difficulty]) throw new Error('Unknown difficulty');
     this.difficulty = difficulty;
-    this.settings = difficulties[difficulty];
+    if (!gameModes[gameMode]) throw new Error('Unknown game mode');
+    this.gameMode = gameMode; this.objectType = objectType; this.inputMode = inputMode;
+    this.duration = gameModes[gameMode].duration; this.paused = false;
+    this.settings = physicsSettings(difficulty, objectType);
     this.elapsed = 0; this.position = 0; this.velocity = 0;
     this.stars = 0; this.drops = 0; this.safeTime = 0; this.streak = 0;
     this.respawn = 0; this.done = false; this.isSafe = true;
@@ -14,11 +17,12 @@ export class EggGame {
   }
   // Called with a fixed timestep by the renderer. No DOM or sensor dependencies.
   step(dt, input) {
-    if (this.done || !Number.isFinite(dt) || dt <= 0) return;
-    dt = Math.min(dt, config.duration - this.elapsed);
+    if (this.paused || this.done || !Number.isFinite(dt) || dt <= 0) return;
+    dt = Math.min(dt, this.duration - this.elapsed);
     const { relativeAngle, rawAngle } = input;
     if (!Number.isFinite(relativeAngle) || !Number.isFinite(rawAngle)) return;
-    const gameAngle = clamp(relativeAngle, -config.maxAngle, config.maxAngle);
+    const gameAngle = clamp(input.gameAngle ?? relativeAngle, -config.maxAngle, config.maxAngle);
+    if (!Number.isFinite(gameAngle)) return;
     const p = this.settings;
     if (this.respawn > 0) {
       this.respawn = Math.max(0, this.respawn - dt);
@@ -30,7 +34,7 @@ export class EggGame {
       this.velocity = clamp(this.velocity, -p.maxSpeed, p.maxSpeed);
       this.position += this.velocity * dt;
       if (Math.abs(this.position) > 1) {
-        this.drops++; this.respawn = config.respawnSeconds; this.streak = 0;
+        this.drops++; if (this.gameMode === 'SURVIVAL') this.done = true; this.respawn = config.respawnSeconds; this.streak = 0;
       }
     }
     this.isSafe = this.respawn === 0 && Math.abs(this.position) <= p.safeZoneWidth;
@@ -38,7 +42,7 @@ export class EggGame {
       this.safeTime += dt;
       const before = Math.floor((this.streak + 1e-8) / config.starSeconds);
       this.streak += dt;
-      this.stars += Math.floor((this.streak + 1e-8) / config.starSeconds) - before;
+      if (this.gameMode === 'STAR') this.stars = Math.min(15, this.stars + Math.floor((this.streak + 1e-8) / config.starSeconds) - before);
     } else this.streak = 0;
     this.elapsed += dt;
     this.angleSum += relativeAngle * dt;
@@ -46,10 +50,12 @@ export class EggGame {
     this.maxAbsAngle = Math.max(this.maxAbsAngle, Math.abs(relativeAngle));
     if (this.elapsed + 1e-8 >= this.nextSample) {
       this.samples.push({ timestamp: +this.elapsed.toFixed(4), rawAngle, relativeAngle,
-        eggPosition: this.position, eggVelocity: this.velocity, isSafeZone: this.isSafe, difficulty: this.difficulty });
+        eggPosition: this.position, eggVelocity: this.velocity, isSafeZone: this.isSafe, difficulty: this.difficulty, gameMode: this.gameMode, objectType: this.objectType, inputMode: this.inputMode,
+        survivalTime: this.elapsed, dropCount: this.drops, starCount: this.stars,
+        bodyAxisAngle: input.bodyAxisAngle ?? '', trackingConfidence: input.trackingConfidence ?? '' });
       this.nextSample = this.elapsed + config.sampleInterval;
     }
-    this.done = this.elapsed >= config.duration - 1e-8;
+    this.done ||= this.elapsed >= this.duration - 1e-8;
   }
   summary() {
     const time = this.elapsed;
@@ -58,9 +64,12 @@ export class EggGame {
     return { trialDuration: time, meanAngle: mean, SDAngle: Math.sqrt(Math.max(0, square - mean * mean)),
       RMSE_from_zero: Math.sqrt(square), maxAbsAngle: this.maxAbsAngle,
       safeZoneTime: this.safeTime, safeZonePercentage: time ? this.safeTime / time * 100 : 0,
-      numberOfEggDrops: this.drops, stars: this.stars };
+      numberOfEggDrops: this.drops, stars: this.stars, gameMode: this.gameMode, objectType: this.objectType, inputMode: this.inputMode, difficulty: this.difficulty, survivalTime: time, dropCount: this.drops, starCount: this.stars };
   }
 }
+
+// Compatibility with existing callers and research columns.
+export class EggGame extends SeesawGame {}
 
 export function toCSV(rows) {
   if (!rows.length) return '';
