@@ -317,5 +317,5 @@ updateSetupArt();
 
 const feedbackTimer = setInterval(() => { if (mode === 'phone') phoneHost.feedback({ phase, paused, objectLabel: objects[objectType].label, canStart: fresh() && input().calibrated }); },500);
 phoneHost.start();
-$('mode').disabled = false;
+$('mode').disabled = false; $('game-mode').disabled = false; $('difficulty').disabled = false;
 document.body.dataset.appReady = 'true';

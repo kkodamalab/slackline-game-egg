@@ -40,7 +40,7 @@ async function contextFor(){
 async function pair(mode='KEEP',{sensor=false}={}){
  const hostContext=await contextFor(),phoneContext=await contextFor();
  const host=await hostContext.newPage(),phone=await phoneContext.newPage();const errors=[];host.on('pageerror',e=>errors.push(e.message));phone.on('pageerror',e=>errors.push(e.message));
- await host.goto(origin);await host.click(`[data-game-mode="${mode}"]`);
+ await host.goto(origin);await host.click(`[data-game-mode="${mode}"]`);assert.equal(await host.locator(`[data-game-mode="${mode}"]`).getAttribute('aria-pressed'),'true');
  await host.waitForSelector('#qr canvas',{state:'attached',timeout:15000});
  await host.waitForFunction(()=>document.getElementById('connection-state').textContent.includes('スマホをつないで'));
  const url=await host.locator('#controller-link').getAttribute('href');assert.equal(new URL(url).searchParams.get('player'),'A');
@@ -72,7 +72,7 @@ for(const mode of ['KEEP','STAR','SURVIVAL'])test(`two real WebRTC screens: PHON
  await p.host.waitForFunction(()=>parseFloat(document.getElementById('platform').style.transform.match(/[-\d.]+/)?.[0])>10);
  await p.host.waitForFunction(()=>parseFloat(document.getElementById('egg').style.left)>52);
  if(mode==='STAR'){
- await p.phone.locator('#controller-test-tilt').fill('0');await p.host.waitForTimeout(2500);assert.ok(Number(await p.host.locator('#stars').textContent())>=1);
+ await p.phone.locator('#controller-test-tilt').fill('0');await p.host.waitForFunction(()=>Number(document.getElementById('stars').textContent)>=1,null,{timeout:6000});assert.ok(Number(await p.host.locator('#stars').textContent())>=1);
  }
  if(mode==='SURVIVAL'){
  await p.phone.locator('#controller-test-tilt').fill('30');await p.host.waitForSelector('#result:not([hidden])',{timeout:15000});
