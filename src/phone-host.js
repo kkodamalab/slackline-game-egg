@@ -16,7 +16,6 @@ export class PhoneHost {
     catch (error) { document.getElementById('qr-note').textContent = error.message; return; }
     this.bus = bus; this.updateQR();
     const text = (id,value) => { document.getElementById(id).textContent = value; };
-    text('qr-note','QRを読み取れます。接続サービスを待っています…');
     bus.onReady = id => { if (this.bus !== bus) return; this.room = id; this.updateQR(); };
     bus.onPresence = (role, connected) => {
       if (this.bus !== bus || role !== 'A') return;

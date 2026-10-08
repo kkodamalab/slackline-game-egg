@@ -56,6 +56,7 @@ async function pair(mode='KEEP',{sensor=false}={}){
 test('real generated QR decodes to correct Controller URL, and titles follow every object',async()=>{
  const context=await contextFor(),page=await context.newPage();try{
  await page.goto(origin);await page.waitForSelector('#qr canvas',{state:'attached'});
+ assert.ok((await page.locator('#qr-note').textContent()).includes('同じPC'));
  const pixels=await page.locator('#qr canvas').evaluate(c=>({width:c.width,height:c.height,data:Array.from(c.getContext('2d').getImageData(0,0,c.width,c.height).data)}));
  const decoded=jsQR(Uint8ClampedArray.from(pixels.data),pixels.width,pixels.height);assert.ok(decoded);
  assert.equal(decoded.data,await page.locator('#controller-link').getAttribute('href'));
