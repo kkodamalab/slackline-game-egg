@@ -1,5 +1,5 @@
-import { objects, gameModes } from './config.js';
-import { objectSVG } from './art.js';
+import { objects, gameModes } from './config.js?v=20261009-phone-restoration';
+import { objectSVG } from './art.js?v=20261009-phone-restoration';
 export function giftData(game, images = {}) {
   return { version: 1, gameName: 'シーソーゲーム：〇〇を落とすな！', gameMode: game.gameMode,
     objectType: game.objectType, result: game.summary(), images: { ...images },

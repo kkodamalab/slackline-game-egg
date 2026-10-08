@@ -21,7 +21,7 @@ export const objects = Object.freeze({
   CHICK: { label: 'ひよこ', gravity: .65, damping: 1.2, speed: .7 },
   MY_FACE: { label: 'じぶんの顔', gravity: 1, damping: 1, speed: 1 },
   MY_DRAWING: { label: 'じぶんの絵', gravity: 1, damping: 1, speed: 1 },
-  MY_PHOTO: { label: 'すきな写真', gravity: 1, damping: 1, speed: 1 },
+  MY_PHOTO: { label: '写真', gravity: 1, damping: 1, speed: 1 },
 });
 export function physicsSettings(difficulty, objectType) {
   const d = difficulties[difficulty], o = objects[objectType];

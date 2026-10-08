@@ -92,7 +92,7 @@ test('MediaPipe failure offers input fallback and closes camera',async()=>{
 test('GiBoard permission in click, rotation and stale input safely pause',async()=>{
  const page=await pageFor();try{
  await page.evaluate(()=>{window.DeviceOrientationEvent.requestPermission=async()=>{window.permissionCalled=true;return 'granted';};});
- await page.click('#connect');assert.equal(await page.evaluate(()=>window.permissionCalled),true);
+ await page.selectOption('#mode','sensor');await page.click('#connect');assert.equal(await page.evaluate(()=>window.permissionCalled),true);
  await page.evaluate(()=>window.dispatchEvent(new DeviceOrientationEvent('deviceorientation',{beta:0,gamma:0})));
  await page.clock.runFor(32);await page.click('#center');await page.click('#start');await page.clock.runFor(2600);
  assert.equal(await page.locator('#pause-panel').isVisible(),true);
@@ -110,4 +110,17 @@ test('face camera capture and retake are local; closing camera ends all tracks',
  await page.click('#photo-camera');await page.waitForSelector('#capture:not([hidden])');await page.click('#stop-photo');
  assert.equal(await page.evaluate(()=>document.getElementById('photo-video').srcObject),null);assert.deepEqual(page.errors,[]);
  }finally{await page.close();}
+});
+test('slow startup cannot lose a mode or difficulty choice before event registration',async()=>{
+ const page=await browser.newPage();let release;const gate=new Promise(resolve=>release=resolve);
+ try{
+ await page.route('**/src/app.js*',async route=>{await gate;await route.continue();});
+ await page.goto(origin,{waitUntil:'commit'});await page.waitForSelector('[data-game-mode="SURVIVAL"]',{state:'attached'});
+ assert.equal(await page.locator('[data-game-mode="SURVIVAL"]').isDisabled(),true);
+ assert.equal(await page.locator('[data-level="hard"]').isDisabled(),true);assert.equal(await page.locator('#mode').isDisabled(),true);
+ release();await page.waitForFunction(()=>document.body.dataset.appReady==='true');
+ await page.click('[data-game-mode="SURVIVAL"]');await page.click('[data-level="hard"]');await page.selectOption('#mode','test');
+ await page.waitForFunction(()=>!document.getElementById('center').disabled);await page.click('#center');await page.click('#start');
+ assert.equal(await page.locator('#time-label').textContent(),'いま');assert.equal(await page.locator('[data-level="hard"]').getAttribute('aria-pressed'),'true');
+ }finally{release?.();await page.close();}
 });

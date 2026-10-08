@@ -1,13 +1,14 @@
-import { config, objects, gameModes } from './config.js';
-import { VBFInput, TiltInput, clamp } from './input.js';
-import { SeesawGame, toCSV } from './game.js';
-import { BodyInput, BodyCamera } from './body.js';
-import { renderObject } from './art.js';
-import { loadImage, drawCrop, saveCanvas } from './images.js';
-import { giftData, drawGift, resultText } from './gift.js';
-import { inputFresh, pauseReason } from './safety.js';
+import { config, objects, gameModes } from './config.js?v=20261009-phone-restoration';
+import { VBFInput, TiltInput, clamp } from './input.js?v=20261009-phone-restoration';
+import { SeesawGame, toCSV } from './game.js?v=20261009-phone-restoration';
+import { BodyInput, BodyCamera } from './body.js?v=20261009-phone-restoration';
+import { renderObject } from './art.js?v=20261009-phone-restoration';
+import { loadImage, drawCrop, saveCanvas } from './images.js?v=20261009-phone-restoration';
+import { giftData, drawGift, resultText } from './gift.js?v=20261009-phone-restoration';
+import { PhoneHost } from './phone-host.js?v=20261009-phone-restoration';
+import { inputFresh, pauseReason } from './safety.js?v=20261009-phone-restoration';
 const $ = id => document.getElementById(id);
-let difficulty = 'easy', mode = 'sensor', phase = 'setup', game = null, paused = false;
+let difficulty = 'easy', mode = 'phone', phase = 'setup', game = null, paused = false;
 let needsCenter = false, accumulator = 0, previous = 0, wakeLock = null, requestingLock = false;
 let testAngle = 0, connectionVersion = 0, connectionTimer, trialMetadata;
 let gameMode = 'KEEP', objectType = 'EGG', images = {}, cropSource = null, cropType = null, photoStream = null, imageVersion = 0, photoVersion = 0, giftVersion = 0;
@@ -23,7 +24,18 @@ const tiltInput = new TiltInput(() => {
   if (phase === 'play') pause('画面の向きが変わりました。まんなかを設定し直してください。');
   else { $('status').textContent = '画面の向きが変わったよ。もういちど まんなかにしてね。'; $('start').disabled = true; }
 });
-const input = () => mode === 'test' ? testInput : mode === 'body' ? bodyInput : tiltInput;
+const phoneHost = new PhoneHost({
+  onCalibration: key => {
+    needsCenter = !phoneHost.input.calibrated;
+    if (phase === 'play' && trialMetadata.controllerCalibrationKey !== key) {
+      trialMetadata.controllerCalibrationKey = key;
+      (trialMetadata.recalibrations ??= []).push({ timestamp: game.elapsed, baselineAngle: phoneHost.input.baselineAngle, calibrationId: phoneHost.input.calibrationId });
+      pause(needsCenter ? 'スマホで中央姿勢を設定し直してね。' : 'スマホの中央設定が変わりました。準備ができたら、つづけよう。');
+    }
+  },
+  onDisconnect: reason => pause(reason),
+});
+const input = () => mode === 'phone' ? phoneHost.input : mode === 'test' ? testInput : mode === 'body' ? bodyInput : tiltInput;
 const fresh = () => inputFresh(input(), mode, performance.now());
 function show(next) {
   phase = next; document.body.classList.toggle('playing',next === 'play');
@@ -49,11 +61,12 @@ function pause(reason) {
   if (phase !== 'play') return;
   paused = true; game.paused = true; accumulator = 0; releaseWakeLock();
   $('pause-panel').hidden = false; $('pause-reason').textContent = reason;
-  $('reset-center').hidden = !needsCenter;
-  $('resume').hidden = needsCenter;
+  $('reset-center').hidden = !needsCenter || mode === 'phone';
+  $('resume').hidden = needsCenter && mode !== 'phone';
 }
 function resume(recenter = false) {
   if (!fresh()) { $('pause-reason').textContent = mode === 'body' ? '肩と腰がカメラに映るまで待ってね。' : 'センサーの入力を待っています。端末とブラウザーの許可を確認してください。'; return; }
+  if (mode === 'phone' && !input().calibrated) { $('pause-reason').textContent = 'スマホで「まんなかにする」を押してください。'; return; }
   if (recenter) { input().calibrate(); needsCenter = false; }
   if (needsCenter) return;
   paused = false; game.paused = false; previous = performance.now(); accumulator = 0; $('pause-panel').hidden = true;
@@ -63,12 +76,15 @@ function prepare() {
   giftVersion++; game = null; paused = false; releaseWakeLock(); show('setup');
   $('pause-panel').hidden = true;
   $('status').textContent = mode === 'body' ? '① カメラをつかう → ② まんなかにしてね。' : '固定をたしかめて、まんなかにしてね。';
-  input().calibrated = false; $('start').disabled = true;
+  if (mode !== 'phone') input().calibrated = false; $('start').disabled = true;
   $('research').open = false;
 }
 $('mode').addEventListener('change', () => {
   connectionVersion++; clearTimeout(connectionTimer); tiltInput.disconnect(); tiltInput.reset(); bodyCamera.disconnect(); stopPhoto();
-  mode = $('mode').value; needsCenter = false;
+  phoneHost.stop(); mode = $('mode').value;
+  $('phone-connection').hidden = mode !== 'phone'; $('local-preparation').hidden = mode === 'phone';
+  if (mode === 'phone') phoneHost.start();
+  needsCenter = false;
   $('connect').disabled = mode === 'test'; $('connect').textContent = mode === 'body' ? '① カメラをつかう' : '① センサーをつかう'; updatePreview(); $('start').disabled = true;
   $('test-controls').hidden = mode !== 'test';
   if (mode === 'test') { testAngle = 0; $('tilt').value = 0; testInput.reset(); testInput.push(0); }
@@ -90,7 +106,7 @@ $('connect').addEventListener('click', async () => {
   } catch (error) { if (version === connectionVersion) { $('status').textContent = mode === 'body' ? 'カメラ・身体検出を開始できません。HTTPS・カメラ許可・ネットワークを確認するか、TILT / PC TESTを選んでね。' : error.message; $('connect').disabled = false; } }
 });
 $('center').addEventListener('click', () => {
-  if (!fresh()) return;
+  if (mode === 'phone' || !fresh()) return;
   input().calibrate(); needsCenter = false; $('start').disabled = false;
   clearTimeout(connectionTimer); $('connect').disabled = mode === 'test';
   $('status').textContent = 'ここが まんなか！ あそぶ準備ができたよ。';
@@ -105,7 +121,7 @@ $('start').addEventListener('click', () => {
   stopPhoto(); game = new SeesawGame(difficulty, { gameMode, objectType, inputMode: mode });
   renderObject($('egg'),objectType,images[objectType]); paused = false; needsCenter = false;
   trialMetadata = { startedAt: new Date().toISOString(), inputMode: mode, baselineAngle: input().baselineAngle,
-    gameMode, objectType, sensitivity: bodyInput.sensitivity, inputInverted: mode === 'body' && bodyInput.invert, filterAlpha: config.alpha, sampleInterval: config.sampleInterval, difficulty, settings: { ...game.settings } };
+    roomId: mode === 'phone' ? phoneHost.room : null, controllerInputType: mode === 'phone' ? input().inputType : null, controllerCalibrationKey: mode === 'phone' ? phoneHost.calibrationKey() : null, gameMode, objectType, sensitivity: bodyInput.sensitivity, inputInverted: mode === 'body' && bodyInput.invert, filterAlpha: config.alpha, sampleInterval: config.sampleInterval, difficulty, settings: { ...game.settings } };
   accumulator = 0; previous = performance.now(); show('play'); acquireWakeLock(); render();
 });
 $('pause').addEventListener('click', () => pause('準備ができたら、つづけよう。'));
@@ -117,7 +133,7 @@ $('reset-center').addEventListener('click', () => {
 $('quit').addEventListener('click', prepare);
 $('again').addEventListener('click', prepare);
 document.addEventListener('visibilitychange', () => { if (document.hidden) pause('画面をはなれたので、おやすみしています。'); });
-window.addEventListener('pagehide', () => { releaseWakeLock(); bodyCamera.disconnect(); tiltInput.disconnect(); stopPhoto(); });
+window.addEventListener('pagehide', () => { phoneHost.stop(); clearInterval(feedbackTimer); releaseWakeLock(); bodyCamera.disconnect(); tiltInput.disconnect(); stopPhoto(); });
 $('tilt').addEventListener('input', () => { testAngle = Number($('tilt').value); });
 window.addEventListener('keydown', event => {
   if (mode !== 'test' || !['setup','play'].includes(phase) || !['ArrowLeft', 'ArrowRight', 'Space'].includes(event.code)) return;
@@ -172,11 +188,12 @@ $('samples-csv').addEventListener('click', () => downloadCSV('keep-the-egg-sampl
 $('summary-csv').addEventListener('click', () => downloadCSV('keep-the-egg-summary.csv', [{ ...trialMetadata, settings: JSON.stringify(trialMetadata.settings), recalibrations: JSON.stringify(trialMetadata.recalibrations ?? []), ...game.summary() }]));
 function frame(now) {
   if (mode === 'test') { testInput.push(testAngle, now); $('tilt-value').textContent = `${testAngle}°`; }
+  if (mode === 'phone') phoneHost.update();
   if (mode === 'body') $('confidence').textContent = `検出Confidence: ${bodyInput.confidence.toFixed(2)}`;
   if (phase === 'setup') { $('center').disabled = !fresh(); $('start').disabled = !fresh() || !input().calibrated || (objectType.startsWith('MY_') && !images[objectType]); }
   if (phase === 'play' && !paused) {
     const dt = (now - previous) / 1000;
-    const reason = pauseReason(input(), mode, now, dt, document.hidden);
+    const reason = mode === 'phone' && !input().calibrated ? 'スマホで中央姿勢を設定してください。' : pauseReason(input(), mode, now, dt, document.hidden);
     if (reason) pause(reason);
     else {
       accumulator += Math.max(0, dt);
@@ -291,8 +308,14 @@ $('gift-save').addEventListener('click',async () => { try { await saveCanvas($('
 $('gift-discard').addEventListener('click',() => { discardImages(); openGift(); });
 
 function updateSetupArt() {
-  $('object-title').textContent = objects[objectType].label;
+  $('object-title').textContent = `${objects[objectType].label}を落とすな！`;
+  document.title = `シーソーゲーム | ${objects[objectType].label}を落とすな！`;
   $('intro-message').textContent = gameMode === 'STAR' ? 'まんなかで、星を集めよう！' : `${objects[objectType].label}を落とさず、${gameMode === 'KEEP' ? '30びょう守ろう！' : 'どこまで耐えられるかな？'}`;
   renderObject($('setup-object'),objectType,images[objectType]);
 }
 updateSetupArt();
+
+const feedbackTimer = setInterval(() => { if (mode === 'phone') phoneHost.feedback({ phase, paused, objectLabel: objects[objectType].label, canStart: fresh() && input().calibrated }); },500);
+phoneHost.start();
+$('mode').disabled = false; $('game-mode').disabled = false; $('difficulty').disabled = false;
+document.body.dataset.appReady = 'true';

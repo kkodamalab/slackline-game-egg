@@ -1,5 +1,5 @@
-import { config, difficulties, gameModes, physicsSettings } from './config.js';
-import { clamp } from './input.js';
+import { config, difficulties, gameModes, physicsSettings } from './config.js?v=20261009-phone-restoration';
+import { clamp } from './input.js?v=20261009-phone-restoration';
 
 export class SeesawGame {
   constructor(difficulty = 'easy', { gameMode = 'STAR', objectType = 'EGG', inputMode = 'sensor' } = {}) {

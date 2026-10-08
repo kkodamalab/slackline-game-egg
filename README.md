@@ -6,7 +6,7 @@ GiBoard／スラックラインの傾き、カメラで見た身体軸、PCの�
 
 ## 起動とチェック
 
-Node.js 20以降。ゲーム本体はビルド不要、TILT・PC TEST・画像加工は外部パッケージなしで動作します。BODY AXISだけはカメラ許可とMediaPipe配布先への通信が必要です。写真・カメラ映像を外部に送る処理はありません。
+Node.js 20以降。ゲーム本体はビルド不要、TILT・PC TEST・画像加工は外部パッケージなしで動作します。BODY AXISはカメラ許可とMediaPipe配布先への通信、PHONE CONTROLLERは元のPeerJSサービスとWebRTCの通信が必要です。写真・カメラ映像を外部に送る処理はありません。
 
 ```sh
 npm ci
@@ -28,7 +28,7 @@ WindowsでChromeが導入済みの場合、PowerShellで `$env:BROWSER_CHANNEL="
 
 ## あそびかた
 
-選ぶ順番は **ゲームモード → オブジェクト → 入力方式 → 難易度** です。初期選択はKEEP・たまご・TILT・かんたん。写真系を選んだ場合、画像を決定してから開始します。
+選ぶ順番は **ゲームモード → オブジェクト → 入力方式 → 難易度** です。初期選択はKEEP・たまご・PHONE CONTROLLER・かんたん。写真系を選んだ場合、画像を決定してから開始します。
 
 | モード | 終了 | 得点・復帰 |
 |---|---|---|
@@ -36,7 +36,7 @@ WindowsでChromeが導入済みの場合、PowerShellで `$env:BROWSER_CHANNEL="
 | STAR | 30秒 | 安全ゾーンに連続2秒で星1個、最大15個。落下しても取得済みの星は保持 |
 | SURVIVAL | 最初の落下／最大60秒 | 生存時間。60秒で完全成功 |
 
-すべてのモードで、一時停止中は時間・物理・統計が進みません。結果の「もういっかい」は選択を維持して再度中心設定、「べつのゲーム」は設定画面へ戻ります。
+すべてのモードで、一時停止中は時間・物理・統計が進みません。結果の「もういっかい」は選択を維持し、PHONE CONTROLLERではスマホの中心設定を保持、その他の入力では再度中心設定、「べつのゲーム」は設定画面へ戻ります。
 
 ### PCで試す
 
@@ -48,11 +48,11 @@ WindowsでChromeが導入済みの場合、PowerShellで `$env:BROWSER_CHANNEL="
 
 0度以外で中心設定した場合、その角度がゲームの水平です。Spaceは中心設定を解除しません。
 
-### iPhone／GiBoard TILT
+### LOCAL TILT／端末自身の傾斜
 
 1. **HTTPS**の公開ページをSafariで開く。HTTPのLAN開発サーバーではセンサーが使えない場合があります。
 2. スマホが落ちないようGiBoard等に固定する。
-3. TILTを選択し、「① センサーをつかう」→許可。
+3. LOCAL TILTを選択し、「① センサーをつかう」→許可。
 4. 基準姿勢で「② まんなかにする」→「あそぶ！」。
 5. 画面回転では一時停止して中心設定し直します。入力が2.5秒以上停止した場合も一時停止します。
 
@@ -75,6 +75,23 @@ MediaPipe Pose Landmarker（33点、tasks-vision **0.10.32**、Liteモデル）�
 - `storage.googleapis.com`：MediaPipe Lite `.task` モデル
 
 ロード失敗時はTILTかPC TESTに切り替えられます。このブランチのクラウド検証では、モデル配布先がCONNECT 403のため実モデルによる人物検出は未検証です。カメラ接続・検出ロスト・復帰・切替は模擬33点でテストしています。
+
+## PHONE CONTROLLER（イベント用標準）
+
+PCはゲーム画面、スマホはGiBoardに固定する傾斜センサーです。端末自身でゲームを表示するLOCAL TILTとは別入力です。
+
+1. PCでHTTPS公開URLを開き、PHONE CONTROLLERを選ぶ。
+2. PCに表示される240pxのQRをスマホで読む。ROOMは事前に確定するHostのPeer IDで、サービス接続待ちでもQRは表示します。未接続と接続済みは状態表示で区別します。接続URLは同じ公開サブパスの `?room=...&player=A`。
+3. スマホのController専用画面で「センサーをON」→許可。安全に固定し、「まんなかにする」。
+4. PCの接続・センサーON・中央設定が揃ったら「あそぶ！」。PCの「スマホの中央姿勢を設定」でもスマホへ中央設定を要求できます。
+5. 左右に傾けるとPCのシーソーを操作。スマホの回転、センサー停止、通信停止、タブ離脱でPCが一時停止します。
+6. 切断時は自動再試行。スマホの「PCにつなぎ直す」、PCの「再接続」は同じROOMへ再接続。PCの「ROOMを作り直す」やページ再読込では、新しいQRを読み直してください。再接続後はPCの「つづける」で手動再開。
+
+スマホの中央設定とEMAはスマホ側で実施し、PCで二重に処理しません。入力切替では古いROOM・接続を破棄します。接続完了後はQR領域が折りたたまれ、見出しを押すと再表示できます。画像・写真は送信せず、約30Hzで傾斜角と接続／中心設定状態のみPCへ送信します。メタデータにはinputMode=phone、roomId、模擬／実入力区別、中心設定履歴を記録します。
+
+元の `feat/pc-host-controller` のPeerJS **1.5.5**／QRCode.js **1.0.0**、PeerBus・パケット形式を再利用。PeerJSの既存デフォルトPeerServer `0.peerjs.com` と、同梱ライブラリのSTUN／TURN設定を維持します。新サービスや独自の本番TURN認証情報は追加していません。ネットワーク側でWebRTCを禁止する環境では接続できない場合があります。クラウドのHTTPプロキシから `0.peerjs.com` への取得はCONNECT 403を観測しました。
+
+localhostのQRは同じPCでの試験専用です。実機はスマホから開ける同じ版のHTTPS公開URLを「接続設定」で指定するか、最初からPCでも公開URLを開いてください。
 
 ## オブジェクト・画像
 
@@ -103,25 +120,43 @@ MY FACEは前面カメラで撮影、MY DRAWINGは背面カメラで作品を撮
 
 約10Hzの時系列、1/120秒固定ステップでの時間重み統計、CSV、最新1試行のlocalStorage保存を維持。`EggGame` は `SeesawGame` の互換クラスとして残します。既存の `eggPosition`、`eggVelocity`、`numberOfEggDrops`、`stars` などを削除しません。
 
-追加：gameMode、objectType、inputMode、difficulty、survivalTime、dropCount、starCount、bodyAxisAngle、trackingConfidence。inputModeの値は既存sensor／testを維持しbodyを追加。身体軸時の角度はスマホの傾斜ではなく、反転設定後の身体軸相対角です。検出Confidenceは時系列に記録します。感度・入力反転・合成物理設定・再中心設定履歴は試行メタデータへ記録します。
+追加：gameMode、objectType、inputMode、difficulty、survivalTime、dropCount、starCount、bodyAxisAngle、trackingConfidence。inputModeはsensor（LOCAL TILT）／test／body／phone。PHONE CONTROLLERの実・模擬入力区別はcontrollerInputTypeに記録。身体軸時の角度はスマホの傾斜ではなく、反転設定後の身体軸相対角です。検出Confidenceは時系列に記録します。感度・入力反転・合成物理設定・再中心設定履歴は試行メタデータへ記録します。
 
 mean／SD（母標準偏差）／RMSE／最大絶対角／安全ゾーン時間と割合を維持。落下復帰待ちも試行時間に含み、安全ゾーン時間には含めません。CSVには写真や画像データを含めません。
 
 localStorageの `keep-the-egg:last-trial` は最新1試行のmetadata／summary／samplesのみ。外部送信はありません。結果CSVは現在の試行が対象です。
 
+## 復元元と機能退行の原因
+
+指定された `9a0549e26e20bcb41e5265ca0745d6ea13cbe56b` と最初の `8032af3` にはQR／ROOM／通信実装はありません。実装は同じリポジトリの別ブランチ `feat/pc-host-controller`、導入commit `59d646f`、配信検証まで含む先端 `ac6d103c720666181d7bdd55dacb104faffb41da` に存在します。出典は `src/peer-bus.js`、`src/remote-input.js`、`src/controller.js`、`src/qr-connection.js` と `vendor/`。さらに元はUCMゲームのPeerJS実装です（THIRD_PARTY.md）。
+
+PR #1の拡張版はQR追加前のmainをベースにし、上記別ブランチを統合しませんでした。古い公開ブランチには存在した機能が、新mainへ取り込まれず公開元がmainになったことが欠落の原因です。拡張版がQRコードを含むcommitを直接削除したという履歴ではありません。旧ブランチのPAGES_QR_DIAGNOSIS.mdには旧版とQR版の実公開・検証記録があります。
+
+今回、mainの拡張機能を残し、通信モジュール・Controller・同梱ライブラリを選択的に復元しました。タイトルはメイン「シーソーゲーム」、選択に追従するサブタイトルとdocument.titleを明示し、7種類すべてを自動検証します。初期EGG表示は正常です。
+
 ## 構成と検証範囲
 
 - `src/config.js`：独立したモード／難易度／オブジェクト係数
 - `src/game.js`：DOM非依存の物理・終了条件・統計・CSV
+- `src/bootstrap.js`：Host／Controller入口の排他的切替
+- `src/phone-host.js`、`src/peer-bus.js`、`src/remote-input.js`、`src/controller.js`、`src/qr-connection.js`：QRとスマホ連携
+- `vendor/`：元の固定バージョン通信・QRライブラリとライセンス
 - `src/input.js`：従来TILT／共通VBF入力
 - `src/body.js`：身体軸・MediaPipe・カメラ・オーバーレイ
 - `src/safety.js`：入力鮮度／休止条件
 - `src/images.js`、`src/art.js`：ローカル画像加工／SVG
 - `src/gift.js`：PHOTO GIFTデータとPNG用描画
 - `src/app.js`：画面遷移・1/120秒ループ・Wake Lock・許可・保存
-- `test/`：既存11件＋追加のロジック検証
-- `browser-tests/`：3モード、CSV、PNG、画像加工、撮影、入力切替、模擬身体検出・ロスト、模擬センサー停止・回転
+- `test/`：拡張版25件＋通信13件＝38件
+- `browser-tests/phone.test.js`：QRの実デコード、タイトル7種類、実PeerJS＋WebRTC DataChannelの2画面・3モード・切断復帰・中央設定・センサー停止・入力切替
+- `browser-tests/workflow.test.js`：3モード、CSV、PNG、画像加工、撮影、入力切替、模擬身体検出・ロスト、模擬センサー停止・回転
 
 タブ離脱、センサー停止、画面回転、描画0.5秒以上停止で一時停止します。Wake Lockは対応ブラウザーで要求し、休止・終了時に解放。非対応でもゲームは継続できます。
 
 自動テストのTILTイベント・身体点・カメラ映像は模擬入力です。iPhone Safari／Android Chromeでの実センサー方向、実人物の検出精度・照明・服装、実機のWake Lock、GiBoard固定具の振動、子供の操作感は実機確認が必要です。イベント前に縦横画面・拒否・検出停止・30/60秒・再プレイ・保存操作を実機で確認してください。
+
+### 通信ブラウザーテストの環境
+
+開発依存の `peer` はテスト専用ローカルPeerServer、`jsqr` はQR実デコードに使用し、本番に配信しません。TURN実行ファイルがない通常のChromiumでは2画面を直接接続します。CIではcoturnを導入し、同じTCP経路で試験します。`SEESAW_TURN_BINARY` またはシステムの `/usr/bin/turnserver` も使用できます。管理ポリシーで直接UDPを禁止したこのクラウドでは、Debian署名付きパッケージから展開したcoturnを `/workspace/.seesaw-test-tools/coturn/` に置き、127.0.0.1だけで試験用TURN/TCPを起動します。管理ポリシーや本番の接続設定は変更しません。テストプロセスは自分が起動したPeerServer／TURN／開発サーバーを終了します。スマホセンサーイベントは模擬ですが、傾斜パケットは実DataChannelを通過します。
+
+公開後の静的アセット一致確認は `node scripts/verify-pages.mjs`。HTML、CSS、同梱ライブラリ、Host／Controllerのモジュールグラフを公開URLと比較します。外部PeerServerの接続や実機センサーの検証とは別です。
