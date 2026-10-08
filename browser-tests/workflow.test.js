@@ -114,7 +114,7 @@ test('face camera capture and retake are local; closing camera ends all tracks',
 test('slow startup cannot lose a mode or difficulty choice before event registration',async()=>{
  const page=await browser.newPage();let release;const gate=new Promise(resolve=>release=resolve);
  try{
- await page.route('**/src/app.js',async route=>{await gate;await route.continue();});
+ await page.route('**/src/app.js*',async route=>{await gate;await route.continue();});
  await page.goto(origin,{waitUntil:'commit'});await page.waitForSelector('[data-game-mode="SURVIVAL"]',{state:'attached'});
  assert.equal(await page.locator('[data-game-mode="SURVIVAL"]').isDisabled(),true);
  assert.equal(await page.locator('[data-level="hard"]').isDisabled(),true);assert.equal(await page.locator('#mode').isDisabled(),true);

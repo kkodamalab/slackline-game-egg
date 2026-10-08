@@ -1,4 +1,4 @@
-import { config } from './config.js';
+import { config } from './config.js?v=20261009-phone-restoration';
 export const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 export const angleDifference = (angle, baseline) => ((angle - baseline + 540) % 360) - 180;
 

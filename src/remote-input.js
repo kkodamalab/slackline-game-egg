@@ -1,5 +1,5 @@
-import { config } from './config.js';
-import { clamp } from './input.js';
+import { config } from './config.js?v=20261009-phone-restoration';
+import { clamp } from './input.js?v=20261009-phone-restoration';
 export const protocol = 'keep-the-egg/1';
 
 export function tiltPacket(input, { sequence, sessionId, sensorOn, calibrationId, visible = true, test = false,

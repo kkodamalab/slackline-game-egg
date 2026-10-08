@@ -1,6 +1,6 @@
-import { PeerBus } from './peer-bus.js';
-import { RemoteTiltInput } from './remote-input.js';
-import { controllerURL, isPhoneURL, renderQR } from './qr-connection.js';
+import { PeerBus } from './peer-bus.js?v=20261009-phone-restoration';
+import { RemoteTiltInput } from './remote-input.js?v=20261009-phone-restoration';
+import { controllerURL, isPhoneURL, renderQR } from './qr-connection.js?v=20261009-phone-restoration';
 export class PhoneHost {
   constructor({ onChange = () => {}, onCalibration = () => {}, onDisconnect = () => {} } = {}) {
     this.input = new RemoteTiltInput(); this.onChange = onChange; this.onCalibration = onCalibration; this.onDisconnect = onDisconnect;

@@ -1,4 +1,4 @@
-import { VBFInput, clamp } from './input.js';
+import { VBFInput, clamp } from './input.js?v=20261009-phone-restoration';
 export const poseVersion = '0.10.32';
 export const poseRoot = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${poseVersion}`;
 export const poseModel = 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task';
