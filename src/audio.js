@@ -1,4 +1,4 @@
-import { audioConfig } from './config.js?v=20261009-autumn';
+import { audioConfig } from './config.js?v=20261009-ui-physics';
 export const phrases = ['あぶない！','がんばれ！','いいぞ！','そのちょうし！','まんなか！','おっとっと！','やったね！','おめでとう！','なし'];
 export const audioDefaults = { effects: true, alert: 'bell', effectsVolume: .5, voice: true, voiceMode: 'AUTO', phrase: 'がんばれ！', voiceEvent: 'danger', voiceVolume: .7 };
 export function audioSettings(value = {}) {

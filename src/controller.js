@@ -1,7 +1,7 @@
-import { TiltInput, VBFInput } from './input.js?v=20261009-autumn';
-import { PeerBus } from './peer-bus.js?v=20261009-autumn';
-import { tiltPacket } from './remote-input.js?v=20261009-autumn';
-import { config } from './config.js?v=20261009-autumn';
+import { TiltInput, VBFInput } from './input.js?v=20261009-ui-physics';
+import { PeerBus } from './peer-bus.js?v=20261009-ui-physics';
+import { tiltPacket } from './remote-input.js?v=20261009-ui-physics';
+import { config } from './config.js?v=20261009-ui-physics';
 const $ = id => document.getElementById(id);
 
 export function startController(room, { test = false } = {}) {
