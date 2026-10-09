@@ -68,7 +68,7 @@ test('real generated QR decodes to correct Controller URL, and titles follow eve
 for(const mode of ['KEEP','STAR','SURVIVAL'])test(`two real WebRTC screens: PHONE CONTROLLER operates ${mode}`,async()=>{
  const p=await pair(mode);try{
  assert.equal(await p.host.locator('#qr-panel').getAttribute('open'),null);
- await p.host.click('#start');await p.phone.locator('#controller-test-tilt').fill('20');
+ await p.host.click('#start');await p.host.waitForFunction(()=>document.body.dataset.phase==='play');await p.phone.locator('#controller-test-tilt').fill('20');
  await p.host.waitForFunction(()=>parseFloat(document.getElementById('platform').style.transform.match(/[-\d.]+/)?.[0])>10);
  await p.host.waitForFunction(()=>parseFloat(document.getElementById('egg').style.left)>52);
  if(mode==='STAR'){
@@ -79,20 +79,20 @@ for(const mode of ['KEEP','STAR','SURVIVAL'])test(`two real WebRTC screens: PHON
  const summary=JSON.parse(await p.host.locator('#metrics').textContent());assert.equal(summary.inputMode,'phone');assert.equal(summary.dropCount,1);assert.ok(summary.survivalTime<60);
  }
  assert.deepEqual(p.errors,[]);
- }finally{await p.close();}
+ }catch(e){console.log('PHONE DIAG',mode,await p.host.evaluate(()=>document.body.dataset.phase),await p.host.locator('#status').textContent(),await p.host.locator('#pause-reason').textContent());throw e;}finally{await p.close();}
 });
 test('disconnect freezes; same-room reconnect, remote calibration, input switch and new-room rejection',async()=>{
  const p=await pair();try{
- await p.host.click('#start');await p.host.waitForTimeout(1100);await p.phone.click('#controller-retry');
+ await p.host.click('#start');await p.host.waitForFunction(()=>document.body.dataset.phase==='play');await p.host.waitForTimeout(1100);await p.phone.click('#controller-retry');
  await p.host.waitForSelector('#pause-panel:not([hidden])');const time=await p.host.locator('#time').textContent();
  await p.host.waitForTimeout(1200);assert.equal(await p.host.locator('#time').textContent(),time);
  await p.phone.waitForFunction(()=>document.getElementById('controller-connection').textContent.includes('●'));await p.host.waitForFunction(()=>document.getElementById('center-state').textContent.includes('✓'));
  await p.host.click('#resume');assert.equal(await p.host.locator('#pause-panel').isVisible(),false);
  await p.host.click('#pause');await p.host.click('#quit');await p.phone.locator('#controller-test-tilt').fill('12');await p.host.waitForTimeout(200);
- await p.host.click('#phone-center');await p.host.waitForTimeout(200);await p.host.click('#start');
+ await p.host.click('#phone-center');await p.host.waitForTimeout(200);await p.host.click('#start');await p.host.waitForFunction(()=>document.body.dataset.phase==='play');
  await p.host.waitForFunction(()=>Math.abs(parseFloat(document.getElementById('platform').style.transform.match(/[-\d.]+/)?.[0]))<1);
  await p.host.click('#pause');await p.host.click('#quit');await p.host.selectOption('#mode','test');
- assert.equal(await p.host.locator('#phone-connection').isVisible(),false);await p.host.click('#center');await p.host.click('#start');
+ assert.equal(await p.host.locator('#phone-connection').isVisible(),false);await p.host.click('#center');await p.host.click('#start');await p.host.waitForFunction(()=>document.body.dataset.phase==='play');
  await p.phone.locator('#controller-test-tilt').fill('30');await p.host.waitForTimeout(300);assert.ok((await p.host.locator('#platform').getAttribute('style')).includes('rotate(0deg)'));
  await p.host.click('#pause');await p.host.click('#quit');await p.host.selectOption('#mode','phone');await p.host.waitForSelector('#qr canvas',{state:'attached'});
  assert.notEqual(await p.host.locator('#controller-link').getAttribute('href'),p.url);assert.equal(await p.host.locator('#start').isDisabled(),true);
@@ -101,19 +101,20 @@ test('disconnect freezes; same-room reconnect, remote calibration, input switch 
 });
 test('real DataChannel carries simulated sensor permission, rotation and stale sensor pause',async()=>{
  const p=await pair('KEEP',{sensor:true});try{
- assert.equal(await p.phone.evaluate(()=>window.permissionFromClick),true);await p.host.click('#start');
- await p.phone.evaluate(()=>{for(let i=0;i<30;i++)window.dispatchEvent(new DeviceOrientationEvent('deviceorientation',{beta:0,gamma:15}));});
+ await p.phone.evaluate(()=>{window.sensorGamma=0;window.sensorPump=setInterval(()=>window.dispatchEvent(new DeviceOrientationEvent('deviceorientation',{beta:0,gamma:window.sensorGamma})),50);});
+ assert.equal(await p.phone.evaluate(()=>window.permissionFromClick),true);await p.host.click('#start');await p.host.waitForFunction(()=>document.body.dataset.phase==='play');
+ await p.phone.evaluate(()=>{window.sensorGamma=15;for(let i=0;i<30;i++)window.dispatchEvent(new DeviceOrientationEvent('deviceorientation',{beta:0,gamma:15}));});
  await p.host.waitForFunction(()=>parseFloat(document.getElementById('platform').style.transform.match(/[-\d.]+/)?.[0])>10);
  await p.phone.evaluate(()=>screen.orientation.dispatchEvent(new Event('change')));await p.host.waitForSelector('#pause-panel:not([hidden])');
- await p.phone.evaluate(()=>window.dispatchEvent(new DeviceOrientationEvent('deviceorientation',{beta:0,gamma:10})));
- await p.phone.click('#controller-center');await p.host.waitForFunction(()=>document.getElementById('center-state').textContent.includes('✓'));await p.host.click('#resume');
+ await p.phone.evaluate(()=>{window.sensorGamma=10;window.dispatchEvent(new DeviceOrientationEvent('deviceorientation',{beta:0,gamma:10}));});
+ await p.phone.click('#controller-center');await p.host.waitForFunction(()=>document.getElementById('center-state').textContent.includes('✓'));await p.host.click('#resume');await p.phone.evaluate(()=>clearInterval(window.sensorPump));
  await p.host.waitForFunction(()=>!document.getElementById('pause-panel').hidden,{timeout:6000});assert.deepEqual(p.errors,[]);
  }finally{await p.close();}
 });
 test('PHOTO GIFT actual chunked WebRTC PNG: dedicated QR, phone layouts, retry, save and erase',async()=>{
  const hc=await contextFor(),rc=await contextFor(),host=await hc.newPage(),receiver=await rc.newPage();const errors=[];for(const p of [host,receiver])p.on('pageerror',e=>errors.push(e.message));
  try{
- await host.clock.install();await host.goto(origin);await host.selectOption('#mode','test');await host.locator('#play-duration').fill('5');await host.locator('#play-duration').dispatchEvent('input');await host.clock.runFor(32);await host.click('#center');await host.click('#start');await host.clock.runFor(5100);await host.click('#gift-open');await host.waitForFunction(()=>!document.getElementById('gift-save').disabled);
+ await host.clock.install();await host.goto(origin);await host.selectOption('#mode','test');await host.locator('#play-duration').fill('5');await host.locator('#play-duration').dispatchEvent('input');await host.clock.runFor(32);await host.click('#center');await host.click('#start');await host.clock.runFor(8200);await host.click('#gift-open');await host.waitForFunction(()=>!document.getElementById('gift-save').disabled);
  await host.clock.resume();
  await host.check('#gift-consent');
  // Real entropy makes a multi-chunk PNG, instead of a trivial one-pixel payload.
@@ -129,6 +130,12 @@ test('PHOTO GIFT actual chunked WebRTC PNG: dedicated QR, phone layouts, retry, 
  await receiver.route('**/src/gift-transfer.js*',async route=>{const response=await route.fetch();await route.fulfill({response,body:(await response.text()).replace("conn.send({type:'ack',index});", "if(index!==0)conn.send({type:'ack',index});")});});
  await receiver.reload();await receiver.waitForFunction(()=>document.getElementById('receive-status').textContent.includes('受信中'));await receiver.unroute('**/src/gift-transfer.js*');await receiver.reload();await receiver.waitForSelector('#receive-save:not([hidden])',{timeout:30000});
  await receiver.click('#receive-discard');assert.equal(await receiver.locator('#receive-image').getAttribute('src'),null);assert.equal(await receiver.locator('#receive-save').getAttribute('href'),null);
- await host.click('#new-participant');assert.equal(await host.locator('#setup').isVisible(),true);await host.selectOption('#mode','test');await host.clock.runFor(32);await host.click('#center');await host.click('#start');await host.clock.runFor(5100);await host.click('#gift-open');await host.waitForFunction(()=>!document.getElementById('gift-save').disabled);assert.equal(await host.locator('#gift-reuse').isDisabled(),true);assert.equal(await host.locator('#gift-consent').isChecked(),false);assert.equal(await host.locator('#gift-transfer').isVisible(),false);assert.deepEqual(errors,[]);
+ await host.click('#new-participant');assert.equal(await host.locator('#setup').isVisible(),true);await host.selectOption('#mode','test');await host.clock.runFor(32);await host.click('#center');await host.click('#start');await host.clock.runFor(8200);await host.click('#gift-open');await host.waitForFunction(()=>!document.getElementById('gift-save').disabled);assert.equal(await host.locator('#gift-reuse').isDisabled(),true);assert.equal(await host.locator('#gift-consent').isChecked(),false);assert.equal(await host.locator('#gift-transfer').isVisible(),false);assert.deepEqual(errors,[]);
  }catch(e){console.log('GIFT DIAG',await host.locator('#gift-transfer-status').textContent(),await receiver.locator('#receive-status').textContent(),errors);throw e;}finally{await hc.close();await rc.close();}
+});
+test('PHONE CONTROLLER disconnect during countdown aborts, reconnect requires a new 3-second start',async()=>{
+ const p=await pair();try{
+ await p.host.click('#start');assert.equal(await p.host.locator('#countdown-number').textContent(),'3');await p.host.waitForTimeout(1100);await p.phone.click('#controller-retry');await p.host.waitForSelector('#setup:not([hidden])');assert.ok((await p.host.locator('#status').textContent()).includes('3から'));assert.equal(await p.host.locator('#time').textContent(),'30');
+ await p.host.waitForFunction(()=>!document.getElementById('start').disabled);assert.equal(await p.host.locator('#play').isVisible(),false);await p.host.click('#start');assert.equal(await p.host.locator('#countdown-number').textContent(),'3');await p.host.waitForFunction(()=>document.body.dataset.phase==='play');assert.equal(await p.host.locator('#time').textContent(),'30');assert.deepEqual(p.errors,[]);
+ }finally{await p.close();}
 });

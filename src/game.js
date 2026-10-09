@@ -1,5 +1,5 @@
-import { config, difficulties, gameModes, physicsSettings, playDuration } from './config.js?v=20261009-audio-gift';
-import { clamp } from './input.js?v=20261009-audio-gift';
+import { config, difficulties, gameModes, physicsSettings, playDuration } from './config.js?v=20261009-autumn';
+import { clamp } from './input.js?v=20261009-autumn';
 
 export class SeesawGame {
   constructor(difficulty = 'easy', { gameMode = 'STAR', objectType = 'EGG', inputMode = 'sensor', duration }  = {}) {
@@ -51,7 +51,7 @@ export class SeesawGame {
     if (this.elapsed + 1e-8 >= this.nextSample) {
       this.samples.push({ timestamp: +this.elapsed.toFixed(4), rawAngle, relativeAngle,
         eggPosition: this.position, eggVelocity: this.velocity, isSafeZone: this.isSafe, difficulty: this.difficulty, gameMode: this.gameMode, objectType: this.objectType, inputMode: this.inputMode,
-        configuredDuration: this.duration, survivalTime: this.elapsed, dropCount: this.drops, starCount: this.stars,
+        configuredDuration: this.duration, survivalTime: this.elapsed, dropCount: this.drops, starCount: this.stars, leafCount: this.gameMode === 'STAR' ? this.stars : 0,
         bodyAxisAngle: input.bodyAxisAngle ?? '', trackingConfidence: input.trackingConfidence ?? '' });
       this.nextSample = this.elapsed + config.sampleInterval;
     }
@@ -64,7 +64,7 @@ export class SeesawGame {
     return { trialDuration: time, meanAngle: mean, SDAngle: Math.sqrt(Math.max(0, square - mean * mean)),
       RMSE_from_zero: Math.sqrt(square), maxAbsAngle: this.maxAbsAngle,
       safeZoneTime: this.safeTime, safeZonePercentage: time ? this.safeTime / time * 100 : 0,
-      numberOfEggDrops: this.drops, stars: this.stars, gameMode: this.gameMode, objectType: this.objectType, inputMode: this.inputMode, difficulty: this.difficulty, configuredDuration: this.duration, survivalTime: time, dropCount: this.drops, starCount: this.stars };
+      numberOfEggDrops: this.drops, stars: this.stars, gameMode: this.gameMode, objectType: this.objectType, inputMode: this.inputMode, difficulty: this.difficulty, configuredDuration: this.duration, survivalTime: time, dropCount: this.drops, starCount: this.stars, leafCount: this.gameMode === 'STAR' ? this.stars : 0 };
   }
 }
 

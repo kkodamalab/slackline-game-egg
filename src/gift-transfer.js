@@ -1,4 +1,4 @@
-import { renderQR } from './qr-connection.js?v=20261009-audio-gift';
+import { renderQR } from './qr-connection.js?v=20261009-autumn';
 export const transferLimits = { chunk: 48*1024, bytes: 12*1024*1024, ttl: 10*60*1000, timeout: 15000 };
 export function giftURL(base,peer,token) {
   const u=new URL(base);if(!['https:','http:'].includes(u.protocol)||u.username||u.password)throw Error('接続URLが正しくありません。');

@@ -1,6 +1,6 @@
-import { drawGift, giftDefaults } from './gift.js?v=20261009-audio-gift';
-import { loadImage, saveCanvas } from './images.js?v=20261009-audio-gift';
-import { GiftSender } from './gift-transfer.js?v=20261009-audio-gift';
+import { drawGift, giftDefaults } from './gift.js?v=20261009-autumn';
+import { loadImage, saveCanvas } from './images.js?v=20261009-autumn';
+import { GiftSender } from './gift-transfer.js?v=20261009-autumn';
 export class GiftEditor {
   constructor(onErase = () => {}) {
     this.photos={};this.options={...giftDefaults};this.version=0;this.photoVersion=0;this.drawGeneration=0;this.onErase=onErase;

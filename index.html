@@ -2,19 +2,18 @@
 <html lang="ja">
 <head>
   <meta charset="utf-8"><meta name="referrer" content="no-referrer"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="seesaw-release" content="20261009-audio-gift">
+  <meta name="seesaw-release" content="20261009-autumn">
   <meta name="theme-color" content="#f7f5e9"><meta name="apple-mobile-web-app-capable" content="yes">
   <title>シーソーゲーム | 〇〇を落とすな！</title>
-  <link rel="stylesheet" href="./styles.css?v=20261009-audio-gift">
+  <link rel="stylesheet" href="./styles.css?v=20261009-autumn">
 </head>
 <body>
   <main id="host-app">
     <header><a class="brand" href="./"><span>シーソーゲーム</span></a><span class="tag">ちいさな バランスあそび</span></header>
     <section id="setup">
-      <div class="intro"><span class="eyebrow">ゆらゆら、そーっと。</span><h1 class="game-title">シーソーゲーム</h1><h2 id="object-title" class="object-title">たまごを落とすな！</h2><p id="intro-message">まっすぐにして、たまごを守ろう！</p></div>
-      <div class="preview" aria-hidden="true"><div class="sun">✦</div><div id="setup-object" class="game-object mascot"></div><div class="mini-platform"></div><span class="sprout">✿</span><span class="preview-label">まんなかが、あんしん。</span></div>
-      <div class="setup-card">
-        <fieldset id="game-mode" disabled><legend>1. どんな あそび？</legend><div class="mode-cards choices"><button data-game-mode="KEEP" aria-pressed="true">落とさず守ろう<small>30びょう</small></button><button data-game-mode="STAR" aria-pressed="false">星を集めよう<small>30びょう</small></button><button data-game-mode="SURVIVAL" aria-pressed="false">どこまで耐える？<small>設定した時間まで</small></button></div></fieldset>
+      <h1 class="setup-heading">シーソーゲーム</h1>
+      <div class="setup-card"><h2 id="object-title" class="setup-subtitle">たまごを落とすな！</h2>
+        <fieldset id="game-mode" disabled><legend>1. どんな あそび？</legend><div class="mode-cards choices"><button data-game-mode="KEEP" aria-pressed="true">落とさず守ろう<small>30びょう</small></button><button data-game-mode="STAR" aria-pressed="false">落ち葉をあつめよう 🍂<small>30びょう</small></button><button data-game-mode="SURVIVAL" aria-pressed="false">どこまで耐える？<small>設定した時間まで</small></button></div></fieldset><p id="intro-message" class="mode-help">まんなかで、オブジェクトを守ろう！</p>
         <fieldset class="object-field"><legend>2. なにを落とさない？</legend><div id="object-choices" class="object-cards"></div></fieldset>
         <div id="image-editor" hidden>
           <p>写真はこのブラウザー内だけで使います。外部に送りません。</p>
@@ -40,7 +39,7 @@
 <label>アラート音<select id="audio-alert"><option value="horn">クラクション</option><option value="whistle">ホイッスル／笛</option><option value="bell" selected>ベル</option><option value="beep">電子音</option><option value="comic">コミカル音</option><option value="none">なし</option></select></label>
 <label>効果音音量<input id="audio-effects-volume" type="range" min="0" max="100" value="50"></label><button id="audio-test" type="button" class="secondary">▶ ためす（効果音）</button>
 <label><input id="audio-voice" type="checkbox" checked>声ON</label><label>音声モード<select id="audio-voice-mode"><option>AUTO</option><option>SELECT</option><option>OFF</option></select></label>
-<label>セリフ<select id="audio-phrase"></select></label><label>SELECTで声を出すとき<select id="audio-event"><option value="danger">危険</option><option value="stable">中央で安定</option><option value="star">星獲得</option><option value="drop">落下</option><option value="success">成功</option><option value="countdown">残り3秒</option></select></label>
+<label>セリフ<select id="audio-phrase"></select></label><label>SELECTで声を出すとき<select id="audio-event"><option value="danger">危険</option><option value="stable">中央で安定</option><option value="star">落ち葉獲得</option><option value="drop">落下</option><option value="success">成功</option><option value="countdown">残り3秒</option></select></label>
 <label>音声音量<input id="audio-voice-volume" type="range" min="0" max="100" value="70"></label><button id="audio-voice-test" class="secondary">▶ ためす（声）</button><p id="audio-status" role="status"></p><p>BGM：OFF</p></fieldset>
 <label><input id="preview-visible" type="checkbox" checked>カメラプレビュー</label>
           <label><input id="skeleton" type="checkbox" checked>スケルトン</label>
@@ -69,10 +68,11 @@
     <section id="play" hidden>
       <div class="hud"><span><span id="time-label">あと</span> <strong id="time">30</strong> びょう</span><span class="stars" id="score-hud"><span id="score-label">落下</span> <strong id="stars">0</strong></span><button id="pause" class="quiet">おやすみ</button></div>
       <p id="message" class="game-message" role="status">そのまま！</p>
-      <div id="scene" class="scene"><div class="cloud cloud-one"></div><div class="cloud cloud-two"></div><div class="hill"></div><div id="platform" class="platform"><div id="zone" class="safe-zone"></div><div id="egg" class="game-object"></div></div><div class="pivot"></div></div>
+      <div id="leaf-flights" aria-hidden="true"></div><div id="scene" class="scene"><div id="leaf-background" aria-hidden="true" hidden></div><div class="cloud cloud-one"></div><div class="cloud cloud-two"></div><div class="hill"></div><div id="platform" class="platform"><div id="zone" class="safe-zone"></div><div id="egg" class="game-object"></div></div><div class="pivot"></div></div>
+      <div id="start-countdown" class="start-countdown" role="status" aria-live="assertive" hidden><strong id="countdown-number">3</strong><p>まんなかで、じゅんび！</p></div>
       <div id="pause-panel" class="pause-panel" hidden><h2>ひとやすみ</h2><p id="pause-reason">準備ができたら、つづけよう。</p><button id="resume" class="primary">つづける</button><button id="reset-center" class="secondary">まんなかにして つづける</button><button id="quit" class="quiet">はじめにもどる</button></div>
     </section>
-    <section id="result" hidden><div id="result-object" class="result-object"></div><div id="celebration" class="celebration">✦ ✦ ✦</div><span class="eyebrow">よく がんばったね</span><h1 id="result-title">できた！</h1><p class="result-stars"><span id="total-stars">0</span></p><p id="result-message">よく がんばったね。</p><button id="again" class="primary">もういっかい ↻</button><button id="other-game" class="secondary">べつのゲーム</button><button id="gift-open" class="secondary">おみやげフォトをつくる</button><button id="result-new-participant" class="quiet">次の参加者（写真をすべて破棄）</button><details id="research"><summary>おとなの方へ · 研究用データ</summary><p id="storage-note"></p><pre id="metrics"></pre><button id="samples-csv" class="secondary">記録CSV</button><button id="summary-csv" class="secondary">集計CSV</button></details></section>
+    <section id="result" hidden><div id="result-object" class="result-object"></div><div id="celebration" class="celebration">✦ ✦ ✦</div><span class="eyebrow">よく がんばったね</span><h1 id="result-title">できた！</h1><p class="result-stars"><span id="total-stars">0</span></p><p id="result-message">よく がんばったね。</p><button id="again" class="primary">もういっかい ↻</button><button id="other-game" class="secondary">べつのゲーム</button><button id="gift-open" class="secondary">おみやげフォトをつくる</button><button id="result-new-participant" class="quiet">次の参加者（写真をすべて破棄）</button><div id="result-leaves" class="leaf-pile" aria-hidden="true" hidden></div><details id="research"><summary>おとなの方へ · 研究用データ</summary><p id="storage-note"></p><pre id="metrics"></pre><button id="samples-csv" class="secondary">記録CSV</button><button id="summary-csv" class="secondary">集計CSV</button></details></section>
     <section id="gift" hidden><h1>おみやげフォト</h1><div id="gift-editor"></div><canvas id="gift-canvas" width="1080" height="1620"></canvas><p id="gift-status" role="status"></p><button id="gift-save" class="primary">PNGを保存</button><button id="gift-send" class="secondary">スマホにおくる</button><p id="gift-transfer-status" role="status"></p><section id="gift-transfer" hidden><h2>写真を受け取るQR</h2><div id="gift-qr"></div><a id="gift-link" target="_blank" rel="noopener"></a><p>PCを開いたまま受信してください。10分間有効。通信できない場合はPCのPNG保存を使えます。</p><button id="gift-transfer-stop" class="quiet">転送終了・一時データを破棄</button></section><button id="gift-back" class="secondary">結果にもどる</button><button id="gift-discard" class="quiet">写真・作品を消す</button><button id="new-participant" class="secondary">次の参加者（写真をすべて破棄）</button></section>
     <aside id="body-preview" hidden><div class="camera-view"><video id="body-video" autoplay muted playsinline></video><canvas id="body-overlay"></canvas></div><p>肩と腰をカメラにうつしてね</p></aside>
     <aside id="test-controls" hidden><label for="tilt">PC Test Mode <output id="tilt-value">0°</output></label><input id="tilt" type="range" min="-30" max="30" step="1" value="0"><p>← 左へ　→ 右へ　Space まっすぐ</p></aside>
@@ -93,6 +93,6 @@
   <main id="gift-receiver" hidden><span class="eyebrow">PHOTO GIFT</span><h1>おみやげフォトを受け取る</h1><p id="receive-status" role="status">写真のPCにつないでいます…</p><img id="receive-image" alt="風に立つ 記念フォト"><a id="receive-save" class="primary" download="kaze-ni-tatsu-2026-10-18.png" hidden>写真を保存</a><button id="receive-share" class="secondary" hidden>共有・写真に保存</button><p>iPhoneで保存できないときは、画像を長押しして「写真に保存」を選んでください。Androidは「写真を保存」からダウンロードできます。</p><button id="receive-retry" class="secondary">再試行</button><button id="receive-discard" class="quiet">受信写真・接続を破棄</button></main>
   <script src="./vendor/peerjs-1.5.5.min.js"></script>
   <script src="./vendor/qrcode-1.0.0.min.js"></script>
-  <script type="module" src="./src/bootstrap.js?v=20261009-audio-gift"></script>
+  <script type="module" src="./src/bootstrap.js?v=20261009-autumn"></script>
 </body>
 </html>
