@@ -16,7 +16,9 @@ export const gameModes = Object.freeze({
 });
 export const objects = Object.freeze({
   EGG: { label: 'たまご', gravity: 1, damping: 1, speed: 1 },
-  BALL: { label: 'ボール', gravity: 1.2, damping: .85, speed: 1.15 },
+  SOCCER_BALL: { label: 'サッカーボール', gravity: 1.2, damping: .85, speed: 1.15 },
+  BASKETBALL: { label: 'バスケットボール', gravity: 1.2, damping: .85, speed: 1.15 },
+  BALL: { legacy: true, label: 'ボール', gravity: 1.2, damping: .85, speed: 1.15 },
   APPLE: { label: 'りんご', gravity: .9, damping: 1.1, speed: .9 },
   CHICK: { label: 'ひよこ', gravity: .65, damping: 1.2, speed: .7 },
   MY_FACE: { label: 'じぶんの顔', gravity: 1, damping: 1, speed: 1 },
@@ -29,3 +31,6 @@ export function physicsSettings(difficulty, objectType) {
   return { ...d, gravity: d.gravity * o.gravity, damping: d.damping * o.damping,
     maxSpeed: Math.min(1.2, d.maxSpeed * o.speed) };
 }
+
+export const audioConfig = Object.freeze({ danger: .70, critical: .90, cooldown: 2, voiceCooldown: 4 });
+export function playDuration(value) { const n = Number(value); if (!Number.isFinite(n) || n < 5 || n > 60 || n % 5) throw new Error("Duration must be 5–60 seconds in steps of 5"); return n; }
