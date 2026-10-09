@@ -11,7 +11,7 @@ export const difficulties = Object.freeze({
 
 export const gameModes = Object.freeze({
   KEEP: { label: '落とさず守ろう', duration: 30 },
-  STAR: { label: '星を集めよう', duration: 30 },
+  STAR: { label: '落ち葉をあつめよう 🍂', duration: 30 },
   SURVIVAL: { label: 'どこまで耐えられる？', duration: 60 },
 });
 export const objects = Object.freeze({

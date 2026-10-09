@@ -1,7 +1,7 @@
-import { TiltInput, VBFInput } from './input.js?v=20261009-audio-gift';
-import { PeerBus } from './peer-bus.js?v=20261009-audio-gift';
-import { tiltPacket } from './remote-input.js?v=20261009-audio-gift';
-import { config } from './config.js?v=20261009-audio-gift';
+import { TiltInput, VBFInput } from './input.js?v=20261009-autumn';
+import { PeerBus } from './peer-bus.js?v=20261009-autumn';
+import { tiltPacket } from './remote-input.js?v=20261009-autumn';
+import { config } from './config.js?v=20261009-autumn';
 const $ = id => document.getElementById(id);
 
 export function startController(room, { test = false } = {}) {
@@ -41,7 +41,7 @@ export function startController(room, { test = false } = {}) {
       bus.onFeedback = feedback => {
         lastFeedback = performance.now();
         $('controller-title').textContent = `${feedback.objectLabel ?? '〇〇'}を落とすな！`;
-        $('controller-host-state').textContent = feedback.phase === 'play' ? (feedback.paused ? 'PCはおやすみ中です' : 'あそんでいます！ ラインをまっすぐにしてね') : feedback.phase === 'result' ? 'できた！ PCの画面を見てね' : 'PCで「あそぶ！」を押してね';
+        $('controller-host-state').textContent = feedback.phase === 'play' ? (feedback.paused ? 'PCはおやすみ中です' : 'あそんでいます！ ラインをまっすぐにしてね') : feedback.phase === 'countdown' ? '3、2、1… まんなかで準備してね' : feedback.phase === 'result' ? 'できた！ PCの画面を見てね' : 'PCで「あそぶ！」を押してね';
       };
     } catch (error) { setConnection(error.message); }
   }

@@ -1,5 +1,5 @@
-import { objects, gameModes } from './config.js?v=20261009-audio-gift';
-import { objectSVG } from './art.js?v=20261009-audio-gift';
+import { objects, gameModes } from './config.js?v=20261009-autumn';
+import { objectSVG } from './art.js?v=20261009-autumn';
 export function giftData(game, images = {}) {
   return { version: 1, gameName: 'シーソーゲーム：〇〇を落とすな！', gameMode: game.gameMode,
     objectType: game.objectType, result: game.summary(), images: { ...images },
@@ -7,7 +7,7 @@ export function giftData(game, images = {}) {
 }
 export function resultText(data) {
   const s = data.result;
-  return data.gameMode === 'STAR' ? `星 ${s.starCount} 個` : data.gameMode === 'KEEP' ? `落下 ${s.dropCount} 回` : `生存 ${s.survivalTime.toFixed(1)} 秒`;
+  return data.gameMode === 'STAR' ? `落ち葉を${s.leafCount ?? s.starCount}枚あつめたよ！` : data.gameMode === 'KEEP' ? `落下 ${s.dropCount} 回` : `生存 ${s.survivalTime.toFixed(1)} 秒`;
 }
 export const giftDefaults = { layout:'A', orientation:'portrait', background:'natural', frame:'simple', title:true, result:true, event:true, object:true };
 export const giftColors = { natural:'#f7f5e9', sky:'#dff1ff', grass:'#e6f1cf', cream:'#fff2ce', pink:'#ffe4ed' };

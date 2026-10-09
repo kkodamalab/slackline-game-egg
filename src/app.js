@@ -1,17 +1,22 @@
-import { config, objects, gameModes } from './config.js?v=20261009-audio-gift';
-import { VBFInput, TiltInput, clamp } from './input.js?v=20261009-audio-gift';
-import { SeesawGame, toCSV } from './game.js?v=20261009-audio-gift';
-import { BodyInput, BodyCamera } from './body.js?v=20261009-audio-gift';
-import { renderObject } from './art.js?v=20261009-audio-gift';
-import { loadImage, drawCrop, saveCanvas } from './images.js?v=20261009-audio-gift';
-import { giftData, drawGift, resultText } from './gift.js?v=20261009-audio-gift';
-import { PhoneHost } from './phone-host.js?v=20261009-audio-gift';
-import { inputFresh, pauseReason } from './safety.js?v=20261009-audio-gift';
-import { GameAudio, phrases } from './audio.js?v=20261009-audio-gift';
-import { GiftEditor } from './gift-editor.js?v=20261009-audio-gift';
+import { config, objects, gameModes } from './config.js?v=20261009-autumn';
+import { VBFInput, TiltInput, clamp } from './input.js?v=20261009-autumn';
+import { SeesawGame, toCSV } from './game.js?v=20261009-autumn';
+import { BodyInput, BodyCamera } from './body.js?v=20261009-autumn';
+import { renderObject } from './art.js?v=20261009-autumn';
+import { loadImage, drawCrop, saveCanvas } from './images.js?v=20261009-autumn';
+import { giftData, drawGift, resultText } from './gift.js?v=20261009-autumn';
+import { PhoneHost } from './phone-host.js?v=20261009-autumn';
+import { inputFresh, pauseReason } from './safety.js?v=20261009-autumn';
+import { GameAudio, phrases } from './audio.js?v=20261009-autumn';
+import { GiftEditor } from './gift-editor.js?v=20261009-autumn';
+import { StartCountdown } from './countdown.js?v=20261009-autumn';
+import { LeafEffects, leafPile } from './leaves.js?v=20261009-autumn';
 const $ = id => document.getElementById(id);
 const audio = new GameAudio(globalThis,text => $('audio-status').textContent=text);
 const giftEditor = new GiftEditor(() => discardImages());
+const countdown=new StartCountdown();
+const leaves=new LeafEffects($('leaf-background'),$('leaf-flights'));
+let countdownLabel='', startBannerUntil=0;
 let duration = 30;
 let difficulty = 'easy', mode = 'phone', phase = 'setup', game = null, paused = false;
 let needsCenter = false, accumulator = 0, previous = 0, wakeLock = null, requestingLock = false;
@@ -26,13 +31,13 @@ const bodyCamera = new BodyCamera($('body-video'), $('body-overlay'), bodyInput,
 const tiltInput = new TiltInput(() => {
   needsCenter = true;
   if (mode !== 'sensor') return;
-  if (phase === 'play') pause('画面の向きが変わりました。まんなかを設定し直してください。');
+  if (['play','countdown'].includes(phase)) pause('画面の向きが変わりました。まんなかを設定し直してください。');
   else { $('status').textContent = '画面の向きが変わったよ。もういちど まんなかにしてね。'; $('start').disabled = true; }
 });
 const phoneHost = new PhoneHost({
   onCalibration: key => {
     needsCenter = !phoneHost.input.calibrated;
-    if (phase === 'play' && trialMetadata.controllerCalibrationKey !== key) {
+    if (['play','countdown'].includes(phase) && trialMetadata.controllerCalibrationKey !== key) {
       trialMetadata.controllerCalibrationKey = key;
       (trialMetadata.recalibrations ??= []).push({ timestamp: game.elapsed, baselineAngle: phoneHost.input.baselineAngle, calibrationId: phoneHost.input.calibrationId });
       pause(needsCenter ? 'スマホで中央姿勢を設定し直してね。' : 'スマホの中央設定が変わりました。準備ができたら、つづけよう。');
@@ -44,9 +49,11 @@ const input = () => mode === 'phone' ? phoneHost.input : mode === 'test' ? testI
 const fresh = () => inputFresh(input(), mode, performance.now());
 function show(next) {
   if (phase === 'gift' && next !== 'gift') giftEditor.close();
-  phase = next; document.body.classList.toggle('playing',next === 'play');
-  for (const name of ['setup', 'play', 'result', 'gift']) $(name).hidden = name !== next;
-  $('test-controls').hidden = mode !== 'test' || !['setup','play'].includes(next);
+  phase = next; document.body.dataset.phase=next; document.body.classList.toggle('playing',['play','countdown'].includes(next));
+  leaves.active(gameMode==='STAR' && ['play','countdown'].includes(next), next==='countdown');
+  $('start-countdown').hidden=next!=='countdown';
+  for (const name of ['setup', 'play', 'result', 'gift']) $(name).hidden = name !== (next==='countdown'?'play':next);
+  $('test-controls').hidden = mode !== 'test' || !['setup','play','countdown'].includes(next);
   updatePreview();
   window.scrollTo(0, 0);
 }
@@ -64,8 +71,9 @@ async function acquireWakeLock() {
 }
 function releaseWakeLock() { const lock = wakeLock; wakeLock = null; lock?.release().catch(() => {}); }
 function pause(reason) {
+  if (phase==='countdown') { cancelCountdown(reason); return; }
   if (phase !== 'play') return;
-  audio.stop(); paused = true; game.paused = true; accumulator = 0; releaseWakeLock();
+  $('start-countdown').hidden=true; audio.stop(); leaves.active(gameMode==='STAR',true); paused = true; game.paused = true; accumulator = 0; releaseWakeLock();
   $('pause-panel').hidden = false; $('pause-reason').textContent = reason;
   $('reset-center').hidden = !needsCenter || mode === 'phone';
   $('resume').hidden = needsCenter && mode !== 'phone';
@@ -76,11 +84,11 @@ function resume(recenter = false) {
   if (mode === 'phone' && !input().calibrated) { $('pause-reason').textContent = 'スマホで「まんなかにする」を押してください。'; return; }
   if (recenter) { input().calibrate(); needsCenter = false; }
   if (needsCenter) return;
-  paused = false; game.paused = false; previous = performance.now(); accumulator = 0; $('pause-panel').hidden = true;
+  leaves.active(gameMode==='STAR'); paused = false; game.paused = false; previous = performance.now(); accumulator = 0; $('pause-panel').hidden = true;
   acquireWakeLock();
 }
 function prepare() {
-  audio.stop(); giftVersion++; game = null; paused = false; releaseWakeLock(); show('setup');
+  countdown.cancel(); leaves.reset(); audio.stop(); giftVersion++; game = null; paused = false; releaseWakeLock(); show('setup');
   $('pause-panel').hidden = true;
   $('status').textContent = mode === 'body' ? '① カメラをつかう → ② まんなかにしてね。' : '固定をたしかめて、まんなかにしてね。';
   if (mode !== 'phone') input().calibrated = false; $('start').disabled = true;
@@ -122,14 +130,25 @@ document.querySelectorAll('[data-level]').forEach(button => button.addEventListe
   difficulty = button.dataset.level;
   document.querySelectorAll('[data-level]').forEach(item => item.setAttribute('aria-pressed', String(item === button)));
 }));
+function cancelCountdown(reason) {
+  countdown.cancel(); audio.stop(); leaves.reset(); game=null; paused=false; accumulator=0; releaseWakeLock(); show('setup');
+  $('start').disabled=true; $('status').textContent=`${reason} 準備ができたら「あそぶ！」で3からやり直してね。`;
+}
+function countdownDisplay(label,playSound=true) {
+  if(countdownLabel===label)return;countdownLabel=label; $('countdown-number').textContent=label;
+  $('start-countdown').classList.remove('countdown-pulse');void $('start-countdown').offsetWidth;$('start-countdown').classList.add('countdown-pulse');
+  if(playSound)audio.tone(label==='スタート！'?'start':'countdown');
+}
 $('start').addEventListener('click', () => {
+  if(phase!=='setup' || countdown.active)return;
   if (!fresh() || !input().calibrated) { $('status').textContent = '入力を確認して、まんなかを設定してね。'; return; }
   if (objectType.startsWith('MY_') && !images[objectType]) { $('status').textContent = '写真や作品をえらんでね。'; return; }
-  audio.unlock(); audio.reset(); stopPhoto(); game = new SeesawGame(difficulty, { gameMode, objectType, inputMode: mode, duration });
+  const audioReady=audio.unlock(); audio.reset(); stopPhoto(); game = new SeesawGame(difficulty, { gameMode, objectType, inputMode: mode, duration });
   renderObject($('egg'),objectType,images[objectType]); paused = false; needsCenter = false;
-  trialMetadata = { startedAt: new Date().toISOString(), inputMode: mode, baselineAngle: input().baselineAngle,
+  trialMetadata = { preparedAt: new Date().toISOString(), startedAt: null, inputMode: mode, baselineAngle: input().baselineAngle,
     roomId: mode === 'phone' ? phoneHost.room : null, controllerInputType: mode === 'phone' ? input().inputType : null, controllerCalibrationKey: mode === 'phone' ? phoneHost.calibrationKey() : null, gameMode, objectType, configuredDuration: duration, sensitivity: bodyInput.sensitivity, inputInverted: mode === 'body' && bodyInput.invert, filterAlpha: config.alpha, sampleInterval: config.sampleInterval, difficulty, settings: { ...game.settings } };
-  accumulator = 0; previous = performance.now(); show('play'); acquireWakeLock(); render();
+  accumulator = 0; previous = performance.now(); const preparedAt=previous; countdown.start(preparedAt); countdownLabel=''; leaves.reset(); $('start').disabled=true; show('countdown'); countdownDisplay('3',false); render();
+  audioReady.then(()=>{if(phase==='countdown' && countdown.startedAt===preparedAt && countdownLabel==='3')audio.tone('countdown');});
 });
 $('pause').addEventListener('click', () => pause('準備ができたら、つづけよう。'));
 $('resume').addEventListener('click', () => resume());
@@ -143,7 +162,7 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) pause
 window.addEventListener('pagehide', () => { audio.stop(); phoneHost.stop(); clearInterval(feedbackTimer); releaseWakeLock(); bodyCamera.disconnect(); tiltInput.disconnect(); stopPhoto(); });
 $('tilt').addEventListener('input', () => { testAngle = Number($('tilt').value); });
 window.addEventListener('keydown', event => {
-  if (mode !== 'test' || !['setup','play'].includes(phase) || !['ArrowLeft', 'ArrowRight', 'Space'].includes(event.code)) return;
+  if (mode !== 'test' || !['setup','play','countdown'].includes(phase) || !['ArrowLeft', 'ArrowRight', 'Space'].includes(event.code)) return;
   if (event.target.matches('select,textarea,input:not([type=range])')) return;
   event.preventDefault();
   testAngle = event.code === 'Space' ? 0 : clamp(testAngle + (event.code === 'ArrowRight' ? 2 : -2), -30, 30);
@@ -151,7 +170,7 @@ window.addEventListener('keydown', event => {
 });
 function render() {
   if (!game) return;
-  const angle = input().read().gameAngle;
+  const angle = phase==='countdown' ? 0 : input().read().gameAngle;
   $('platform').style.transform = `rotate(${angle}deg)`;
   $('platform').classList.toggle('safe', game.isSafe);
   $('zone').style.width = `${game.settings.safeZoneWidth * 100}%`;
@@ -162,16 +181,16 @@ function render() {
   $('egg').style.opacity = String(1 - fallProgress);
   $('time-label').textContent = gameMode === 'SURVIVAL' ? 'いま' : 'あと';
   $('score-hud').hidden = gameMode === 'SURVIVAL';
-  $('score-label').textContent = gameMode === 'STAR' ? '★' : '落下';
+  $('score-label').textContent = gameMode === 'STAR' ? '🍂 ×' : '落下';
   $('time').textContent = gameMode === 'SURVIVAL' ? game.elapsed.toFixed(1) : Math.max(0, Math.ceil(game.duration - game.elapsed));
-  $('stars').textContent = gameMode === 'STAR' ? game.stars : game.drops;
+  if(gameMode==='STAR') leaves.update(game.stars,$('platform'),$('stars')); else $('stars').textContent=game.drops;
   const message = falling ? 'おっと！ もういちど' : !game.isSafe ? 'そーっと、まっすぐ' : game.streak >= 6 ? 'すごい！' : game.streak >= 2 ? 'いいね！' : 'そのまま！';
   if ($('message').textContent !== message) $('message').textContent = message;
 }
 function finish() {
   releaseWakeLock();
   if (mode === 'body') { bodyCamera.disconnect(); $('connect').disabled = false; }
-  show('result');
+  show('result'); leaves.reset(); leafPile($('result-leaves'),gameMode==='STAR'?game.stars:0); $('celebration').hidden=gameMode==='STAR';
   const data = giftData(game);
   $('total-stars').textContent = resultText(data);
   const perfect = gameMode === 'KEEP' && game.drops === 0 || gameMode === 'SURVIVAL' && game.elapsed >= game.duration - 1e-8;
@@ -198,7 +217,16 @@ function frame(now) {
   if (mode === 'phone') phoneHost.update();
   if (mode === 'body') $('confidence').textContent = `検出Confidence: ${bodyInput.confidence.toFixed(2)}`;
   if (phase === 'setup') { $('center').disabled = !fresh(); $('start').disabled = !fresh() || !input().calibrated || (objectType.startsWith('MY_') && !images[objectType]); }
-  if (phase === 'play' && !paused) {
+  if(phase==='countdown') {
+    const dt=(now-previous)/1000;
+    const reason=needsCenter || !input().calibrated ? '中央姿勢を設定し直してね。' : pauseReason(input(),mode,now,dt,document.hidden);
+    const state=countdown.update(now,reason);
+    if(state.aborted) cancelCountdown(state.reason);
+    else if(state.started) { countdownDisplay('スタート！'); show('play'); $('start-countdown').hidden=false; startBannerUntil=now+650; trialMetadata.startedAt=new Date().toISOString(); accumulator=0; previous=now; acquireWakeLock(); }
+    else if(state.active) countdownDisplay(state.label);
+    render();
+  } else if (phase === 'play' && !paused) {
+    if(now>=startBannerUntil)$('start-countdown').hidden=true;
     const dt = (now - previous) / 1000;
     const reason = mode === 'phone' && !input().calibrated ? 'スマホで中央姿勢を設定してください。' : pauseReason(input(), mode, now, dt, document.hidden);
     if (reason) pause(reason);
@@ -214,7 +242,7 @@ function frame(now) {
 requestAnimationFrame(frame);
 
 function updatePreview() {
-  $('body-preview').hidden = mode !== 'body' || !$('preview-visible').checked || !['setup','play'].includes(phase);
+  $('body-preview').hidden = mode !== 'body' || !$('preview-visible').checked || !['setup','play','countdown'].includes(phase);
   document.querySelector('.camera-view').classList.toggle('mirrored',$('preview-mirror').checked);
 }
 function chooseObject(type) {
@@ -322,8 +350,8 @@ function updateSetupArt() {
   document.querySelectorAll('[data-game-mode] small').forEach(e => e.textContent=`${duration}びょう`);
   $('object-title').textContent = `${objects[objectType].label}を落とすな！`;
   document.title = `シーソーゲーム | ${objects[objectType].label}を落とすな！`;
-  $('intro-message').textContent = gameMode === 'STAR' ? 'まんなかで、星を集めよう！' : `${objects[objectType].label}を落とさず、${gameMode === 'KEEP' ? `${duration}びょう守ろう！` : 'どこまで耐えられるかな？'}`;
-  renderObject($('setup-object'),objectType,images[objectType]);
+  $('intro-message').textContent = gameMode === 'STAR' ? 'まんなかで2びょう！落ち葉をあつめよう。' : `${objects[objectType].label}を落とさず、${gameMode === 'KEEP' ? `${duration}びょう守ろう！` : 'どこまで耐えられるかな？'}`;
+
 }
 updateSetupArt();
 

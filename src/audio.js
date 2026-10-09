@@ -1,4 +1,4 @@
-import { audioConfig } from './config.js?v=20261009-audio-gift';
+import { audioConfig } from './config.js?v=20261009-autumn';
 export const phrases = ['あぶない！','がんばれ！','いいぞ！','そのちょうし！','まんなか！','おっとっと！','やったね！','おめでとう！','なし'];
 export const audioDefaults = { effects: true, alert: 'bell', effectsVolume: .5, voice: true, voiceMode: 'AUTO', phrase: 'がんばれ！', voiceEvent: 'danger', voiceVolume: .7 };
 export function audioSettings(value = {}) {
@@ -54,7 +54,7 @@ export class GameAudio {
   stop() { this.stopEffects(); this.speech.stop(); }
   tone(kind) {
     if (!this.settings.effects || !this.settings.effectsVolume || kind === 'none' || !this.context || this.context.state !== 'running') return;
-    const patterns = { horn: [220,277], whistle: [1600,1900], bell: [880,1320], beep: [700,700], comic: [180,420], star: [660,880,1320], success: [523,659,784,1047], drop: [300,180,100], countdown: [600] };
+    const patterns = { horn: [220,277], whistle: [1600,1900], bell: [880,1320], beep: [700,700], comic: [180,420], star: [660,880,1320], success: [523,659,784,1047], drop: [300,180,100], countdown: [600], start: [523,1047] };
     try { (patterns[kind] || patterns.bell).forEach((hz,i) => {
       const o = this.context.createOscillator(), gain = this.context.createGain(), t = this.context.currentTime + i*.12;
       o.type = kind === 'horn' ? 'sawtooth' : kind === 'beep' ? 'square' : 'sine'; o.frequency.setValueAtTime(hz,t);

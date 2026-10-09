@@ -1,4 +1,4 @@
-import { config } from './config.js?v=20261009-audio-gift';
+import { config } from './config.js?v=20261009-autumn';
 export function inputFresh(input, mode, now) {
   return input.ready && (mode === 'test' || now - input.lastSample < (mode === 'body' ? 500 : config.staleMs));
 }

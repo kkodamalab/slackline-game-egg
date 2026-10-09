@@ -1,5 +1,5 @@
-import { config } from './config.js?v=20261009-audio-gift';
-import { clamp } from './input.js?v=20261009-audio-gift';
+import { config } from './config.js?v=20261009-autumn';
+import { clamp } from './input.js?v=20261009-autumn';
 export const protocol = 'keep-the-egg/1';
 
 export function tiltPacket(input, { sequence, sessionId, sensorOn, calibrationId, visible = true, test = false,
