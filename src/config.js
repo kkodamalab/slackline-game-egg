@@ -21,9 +21,17 @@ export const objects = Object.freeze({
   BALL: { legacy: true, label: 'ボール', gravity: 1.2, damping: .85, speed: 1.15 },
   APPLE: { label: 'りんご', gravity: .9, damping: 1.1, speed: .9 },
   CHICK: { label: 'ひよこ', gravity: .65, damping: 1.2, speed: .7 },
-  MY_FACE: { label: 'じぶんの顔', gravity: 1, damping: 1, speed: 1 },
-  MY_DRAWING: { label: 'じぶんの絵', gravity: 1, damping: 1, speed: 1 },
-  MY_PHOTO: { label: '写真', gravity: 1, damping: 1, speed: 1 },
+  IMAGE_FILE: { label: '画像', selectionLabel: 'ファイルを選択', gravity: 1, damping: 1, speed: 1 },
+  IMAGE_CAMERA: { label: '写真', selectionLabel: '写真を撮影', gravity: 1, damping: 1, speed: 1 },
+  PEAR: { label: 'なし', gravity: 1, damping: 1, speed: 1 },
+  CHESTNUT: { label: 'くり', gravity: 1, damping: 1, speed: 1 },
+  MAPLE: { label: 'もみじ', gravity: 1, damping: 1, speed: 1 },
+  LEAF: { label: '落ち葉', gravity: 1, damping: 1, speed: 1 },
+  PUMPKIN: { label: 'かぼちゃ', gravity: 1, damping: 1, speed: 1 },
+  MUSHROOM: { label: 'きのこ', gravity: 1, damping: 1, speed: 1 },
+  MY_FACE: { legacy: true, label: 'じぶんの顔', gravity: 1, damping: 1, speed: 1 },
+  MY_DRAWING: { legacy: true, label: 'じぶんの絵', gravity: 1, damping: 1, speed: 1 },
+  MY_PHOTO: { legacy: true, label: '写真', gravity: 1, damping: 1, speed: 1 },
 });
 export function physicsSettings(difficulty, objectType) {
   const d = difficulties[difficulty], o = objects[objectType];
@@ -34,3 +42,5 @@ export function physicsSettings(difficulty, objectType) {
 
 export const audioConfig = Object.freeze({ danger: .70, critical: .90, cooldown: 2, voiceCooldown: 4 });
 export function playDuration(value) { const n = Number(value); if (!Number.isFinite(n) || n < 5 || n > 60 || n % 5) throw new Error("Duration must be 5–60 seconds in steps of 5"); return n; }
+
+export const isImageObject = type => type.startsWith('MY_') || type.startsWith('IMAGE_');

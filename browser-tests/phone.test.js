@@ -61,8 +61,8 @@ test('real generated QR decodes to correct Controller URL, and titles follow eve
  const decoded=jsQR(Uint8ClampedArray.from(pixels.data),pixels.width,pixels.height);assert.ok(decoded);
  assert.equal(decoded.data,await page.locator('#controller-link').getAttribute('href'));
  assert.equal(new URL(decoded.data).pathname,'/');assert.ok((await page.locator('#room-code').textContent()).includes(new URL(decoded.data).searchParams.get('room')));
- for(const [type,name] of [['EGG','たまご'],['SOCCER_BALL','サッカーボール'],['BASKETBALL','バスケットボール'],['APPLE','りんご'],['CHICK','ひよこ'],['MY_FACE','じぶんの顔'],['MY_DRAWING','じぶんの絵'],['MY_PHOTO','写真']]){
- await page.click(`[data-object="${type}"]`);assert.equal(await page.locator('#object-title').textContent(),`${name}を落とすな！`);assert.ok((await page.title()).includes(name));}
+ for(const [type,name] of [['EGG','たまご'],['SOCCER_BALL','サッカーボール'],['BASKETBALL','バスケットボール'],['APPLE','りんご'],['CHICK','ひよこ'],['IMAGE_FILE','画像'],['IMAGE_CAMERA','写真']]){
+ await page.click(`[data-object="${type}"]`);assert.equal(await page.locator('#play-title').textContent(),`${name}を落とすな！`);assert.ok((await page.title()).includes(name));}
  }finally{await context.close();}
 });
 for(const mode of ['KEEP','STAR','SURVIVAL'])test(`two real WebRTC screens: PHONE CONTROLLER operates ${mode}`,async()=>{
@@ -130,7 +130,7 @@ test('PHOTO GIFT actual chunked WebRTC PNG: dedicated QR, phone layouts, retry, 
  await receiver.route('**/src/gift-transfer.js*',async route=>{const response=await route.fetch();await route.fulfill({response,body:(await response.text()).replace("conn.send({type:'ack',index});", "if(index!==0)conn.send({type:'ack',index});")});});
  await receiver.reload();await receiver.waitForFunction(()=>document.getElementById('receive-status').textContent.includes('受信中'));await receiver.unroute('**/src/gift-transfer.js*');await receiver.reload();await receiver.waitForSelector('#receive-save:not([hidden])',{timeout:30000});
  await receiver.click('#receive-discard');assert.equal(await receiver.locator('#receive-image').getAttribute('src'),null);assert.equal(await receiver.locator('#receive-save').getAttribute('href'),null);
- await host.click('#new-participant');assert.equal(await host.locator('#setup').isVisible(),true);await host.selectOption('#mode','test');await host.clock.runFor(32);await host.click('#center');await host.click('#start');await host.clock.runFor(8200);await host.click('#gift-open');await host.waitForFunction(()=>!document.getElementById('gift-save').disabled);assert.equal(await host.locator('#gift-reuse').isDisabled(),true);assert.equal(await host.locator('#gift-consent').isChecked(),false);assert.equal(await host.locator('#gift-transfer').isVisible(),false);assert.deepEqual(errors,[]);
+ host.once('dialog',d=>d.accept());await host.click('#new-participant');assert.equal(await host.locator('#setup').isVisible(),true);await host.selectOption('#mode','test');await host.clock.runFor(32);await host.click('#center');await host.click('#start');await host.clock.runFor(8200);await host.click('#gift-open');await host.waitForFunction(()=>!document.getElementById('gift-save').disabled);assert.equal(await host.locator('#gift-reuse').isDisabled(),true);assert.equal(await host.locator('#gift-consent').isChecked(),false);assert.equal(await host.locator('#gift-transfer').isVisible(),false);assert.deepEqual(errors,[]);
  }catch(e){console.log('GIFT DIAG',await host.locator('#gift-transfer-status').textContent(),await receiver.locator('#receive-status').textContent(),errors);throw e;}finally{await hc.close();await rc.close();}
 });
 test('PHONE CONTROLLER disconnect during countdown aborts, reconnect requires a new 3-second start',async()=>{

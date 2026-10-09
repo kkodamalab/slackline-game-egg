@@ -1,5 +1,5 @@
-import { config } from './config.js?v=20261009-autumn';
-import { clamp } from './input.js?v=20261009-autumn';
+import { config } from './config.js?v=20261009-ui-physics';
+import { clamp } from './input.js?v=20261009-ui-physics';
 export const protocol = 'keep-the-egg/1';
 
 export function tiltPacket(input, { sequence, sessionId, sensorOn, calibrationId, visible = true, test = false,

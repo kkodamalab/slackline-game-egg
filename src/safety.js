@@ -1,4 +1,4 @@
-import { config } from './config.js?v=20261009-autumn';
+import { config } from './config.js?v=20261009-ui-physics';
 export function inputFresh(input, mode, now) {
   return input.ready && (mode === 'test' || now - input.lastSample < (mode === 'body' ? 500 : config.staleMs));
 }

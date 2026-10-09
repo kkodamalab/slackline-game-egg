@@ -52,7 +52,7 @@ test('SURVIVAL falls immediately; pause freezes and resume/replay work',async()=
 });
 test('JPEG, PNG, WebP crop, bad image recovery, photo gift and erasure',async()=>{
  const page=await pageFor({mobile:true});try{
- for(const [type,mime] of [['MY_FACE','image/jpeg'],['MY_DRAWING','image/png'],['MY_PHOTO','image/webp']]){
+ for(const [type,mime] of [['IMAGE_FILE','image/jpeg'],['IMAGE_FILE','image/png'],['IMAGE_FILE','image/webp']]){
  await page.click(`[data-object="${type}"]`);
  const encoded=await page.evaluate(mime=>{const c=document.createElement('canvas');c.width=1200;c.height=800;const x=c.getContext('2d');x.fillStyle='red';x.fillRect(0,0,1200,800);return c.toDataURL(mime).split(',')[1];},mime);
  await page.setInputFiles('#image-file',{name:'test.'+mime.split('/')[1],mimeType:mime,buffer:Buffer.from(encoded,'base64')});
@@ -61,10 +61,10 @@ test('JPEG, PNG, WebP crop, bad image recovery, photo gift and erasure',async()=
  }
  await page.setInputFiles('#image-file',{name:'bad.png',mimeType:'image/png',buffer:Buffer.from('invalid')});await page.waitForFunction(()=>document.getElementById('image-status').textContent.includes('読み込めません')); 
  await page.click('[data-game-mode="STAR"]');await page.selectOption('#mode','test');await page.clock.runFor(32);await page.click('#center');await page.click('#start');await page.clock.runFor(3100);assert.equal(await page.locator('#egg img').count(),1);
- await page.clock.runFor(31000);const stats=JSON.parse(await page.locator('#metrics').textContent());assert.equal(stats.starCount,15);assert.equal(stats.objectType,'MY_PHOTO');
+ await page.clock.runFor(31000);const stats=JSON.parse(await page.locator('#metrics').textContent());assert.equal(stats.starCount,15);assert.equal(stats.objectType,'IMAGE_FILE');
  const storage=await page.evaluate(()=>localStorage.getItem('keep-the-egg:last-trial'));assert.ok(!storage.includes('data:image'));
  await page.click('#gift-open');await page.waitForFunction(()=>!document.getElementById('gift-save').disabled);await page.click('#gift-discard');await page.waitForFunction(()=>!document.getElementById('gift-save').disabled);
- await page.click('#gift-back');await page.click('#other-game');assert.equal(await page.locator('[data-object="MY_PHOTO"] img').count(),0);assert.deepEqual(page.errors,[]);
+ await page.click('#gift-back');await page.click('#other-game');assert.equal(await page.locator('[data-object="IMAGE_FILE"] img').count(),0);assert.deepEqual(page.errors,[]);
  }finally{await page.close();}
 });
 test('BODY AXIS camera integration with simulated 33 landmarks: lost tracking pauses, switch stops camera',async()=>{
@@ -104,10 +104,10 @@ test('GiBoard permission in click, rotation and stale input safely pause',async(
 });
 test('face camera capture and retake are local; closing camera ends all tracks',async()=>{
  const page=await pageFor({clock:false});try{
- await page.click('[data-object="MY_FACE"]');await page.click('#photo-camera');await page.waitForSelector('#capture:not([hidden])');
+ await page.click('[data-object="IMAGE_CAMERA"]');await page.click('#photo-camera');await page.waitForSelector('#capture:not([hidden])');
  await page.evaluate(()=>window.capturedStream=document.getElementById('photo-video').srcObject);await page.click('#capture');
  assert.equal(await page.evaluate(()=>window.capturedStream.getTracks().every(t=>t.readyState==='ended')),true);
- await page.click('#use-image');assert.equal(await page.locator('[data-object="MY_FACE"] img').count(),1);
+ await page.click('#use-image');assert.equal(await page.locator('[data-object="IMAGE_CAMERA"] img').count(),1);
  await page.click('#photo-camera');await page.waitForSelector('#capture:not([hidden])');await page.click('#stop-photo');
  assert.equal(await page.evaluate(()=>document.getElementById('photo-video').srcObject),null);assert.deepEqual(page.errors,[]);
  }finally{await page.close();}
@@ -137,7 +137,7 @@ test('variable time, rolling balls, sound preferences and gift five layouts with
  await page.locator('#gift-zoom-smile').fill('2');await page.locator('#gift-zoom-smile').dispatchEvent('input');await page.locator('#gift-x-smile').fill('1');await page.locator('#gift-x-smile').dispatchEvent('input');await page.selectOption('#gift-background','pink');await page.selectOption('#gift-frame','nature');await page.waitForFunction(()=>!document.getElementById('gift-save').disabled);
  const colors=await page.locator('#gift-canvas').evaluate(c=>Array.from(c.getContext('2d').getImageData(400,400,1,1).data));assert.deepEqual(colors.slice(0,3),[0,0,255]); // E uses independent drawing, not smile/object.
  await page.click('#gift-remove-drawing');await page.waitForFunction(()=>!document.getElementById('gift-save').disabled);const color=await page.locator('#gift-canvas').evaluate(c=>Array.from(c.getContext('2d').getImageData(400,400,1,1).data));assert.deepEqual(color.slice(0,3),[255,0,0]);
- await page.click('#gift-discard');await page.waitForFunction(()=>!document.getElementById('gift-save').disabled);await page.click('#gift-back');await page.click('#other-game');assert.equal(await page.locator('[data-object="MY_FACE"] img').count(),0);assert.deepEqual(page.errors,[]);
+ await page.click('#gift-discard');await page.waitForFunction(()=>!document.getElementById('gift-save').disabled);await page.click('#gift-back');await page.click('#other-game');assert.equal(await page.locator('[data-object="IMAGE_FILE"] img').count(),0);assert.deepEqual(page.errors,[]);
  }finally{await page.close();}
 });
 test('PHOTO GIFT camera captures and retakes both independent materials, closes all tracks',async()=>{
@@ -151,9 +151,9 @@ test('PHOTO GIFT camera captures and retakes both independent materials, closes 
 for(const mode of ['KEEP','STAR','SURVIVAL'])test(`autumn countdown ${mode}: 3-2-1-start, frozen physics, no duplicate and full configured duration`,async()=>{
  const page=await pageFor();try{
  await page.click(`[data-game-mode="${mode}"]`);await page.selectOption('#mode','test');await page.clock.pauseAt(new Date(await page.evaluate(()=>Date.now()+500)));await page.locator('#play-duration').fill('5');await page.locator('#play-duration').dispatchEvent('input');await page.clock.runFor(32);await page.click('#center');await page.locator('#tilt').fill('30');await page.locator('#tilt').dispatchEvent('input');await page.click('#start');
- assert.equal(await page.locator('#countdown-number').textContent(),'3');assert.equal(await page.locator('#platform').evaluate(e=>e.style.transform),'rotate(0deg)');assert.equal(await page.locator('#egg').evaluate(e=>e.style.left),'50%');assert.equal(await page.locator('#stars').textContent(),'0');assert.equal(await page.locator('#time').textContent(),mode==='SURVIVAL'?'0.0':'5');
+ assert.equal(await page.locator('#countdown-number').textContent(),'3');assert.equal(await page.locator('#platform').evaluate(e=>e.style.transform),'rotate(0deg)');assert.ok(await page.locator('#egg').evaluate(e=>Math.abs(parseFloat(e.style.left)-document.getElementById('scene').clientWidth/2)<.01));assert.equal(await page.locator('#stars').textContent(),'0');assert.equal(await page.locator('#time').textContent(),mode==='SURVIVAL'?'0.0':'5');
  await page.clock.runFor(1030);assert.equal(await page.locator('#countdown-number').textContent(),'2');await page.evaluate(()=>document.getElementById('start').dispatchEvent(new MouseEvent('click')));await page.clock.runFor(1030);assert.equal(await page.locator('#countdown-number').textContent(),'1');await page.clock.runFor(900);
- assert.equal(await page.locator('#time').textContent(),mode==='SURVIVAL'?'0.0':'5');assert.equal(await page.locator('#egg').evaluate(e=>e.style.left),'50%');assert.equal(await page.locator('#stars').textContent(),'0');assert.equal(await page.locator('#result').isVisible(),false);
+ assert.equal(await page.locator('#time').textContent(),mode==='SURVIVAL'?'0.0':'5');assert.ok(await page.locator('#egg').evaluate(e=>Math.abs(parseFloat(e.style.left)-document.getElementById('scene').clientWidth/2)<.01));assert.equal(await page.locator('#stars').textContent(),'0');assert.equal(await page.locator('#result').isVisible(),false);
  await page.clock.runFor(80);assert.equal(await page.locator('#countdown-number').textContent(),'スタート！');assert.equal(await page.evaluate(()=>document.body.dataset.phase),'play');assert.ok(await page.locator('#platform').evaluate(e=>parseFloat(e.style.transform.match(/[-\d.]+/)?.[0])>29));
  await page.locator('#tilt').fill('0');await page.locator('#tilt').dispatchEvent('input');await page.clock.runFor(5100);const summary=JSON.parse(await page.locator('#metrics').textContent());assert.equal(summary.configuredDuration,5);assert.ok(Math.abs(summary.trialDuration-5)<1e-7);assert.equal(summary.dropCount,0);assert.ok(Date.parse(summary.startedAt)-Date.parse(summary.preparedAt)>=3000);
  if(mode==='STAR'){assert.equal(await page.locator('#score-label').textContent(),'🍂 ×');assert.equal(summary.leafCount,2);assert.equal(summary.starCount,2);assert.equal(await page.locator('#total-stars').textContent(),'落ち葉を2枚あつめたよ！');assert.equal(await page.locator('#result-leaves span').count(),2);let data;await page.evaluate(()=>window.addEventListener('photo-gift:preview',e=>window.lastGift=e.detail));await page.click('#gift-open');await page.waitForFunction(()=>!document.getElementById('gift-save').disabled);data=await page.evaluate(()=>window.lastGift.result);assert.equal(data.leafCount,2);}
@@ -164,7 +164,7 @@ test('autumn layout centered on desktop, no decorative left panel or mobile hori
  const page=await pageFor({clock:false});try{
  await page.waitForFunction(()=>document.body.dataset.appReady==='true');assert.equal(await page.locator('#setup .intro,#setup .preview,#setup-object').count(),0);
  for(const width of [1280,700,390,320]){await page.setViewportSize({width,height:900});const box=await page.locator('.setup-card').boundingBox();assert.ok(Math.abs(box.x+box.width/2-width/2)<2);assert.ok(box.width<=700);if(width===1280)assert.ok(box.width>=600);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);}
- await page.click('[data-game-mode="STAR"]');assert.ok((await page.locator('[data-game-mode="STAR"]').textContent()).includes('落ち葉'));await page.click('[data-object="SOCCER_BALL"]');assert.equal(await page.locator('#object-title').textContent(),'サッカーボールを落とすな！');assert.equal(await page.locator('#qr canvas').count(),1);assert.deepEqual(page.errors,[]);
+ await page.click('[data-game-mode="STAR"]');assert.ok((await page.locator('[data-game-mode="STAR"]').textContent()).includes('落ち葉'));await page.click('[data-object="SOCCER_BALL"]');assert.equal(await page.locator('#play-title').textContent(),'サッカーボールを落とすな！');assert.equal(await page.locator('#qr canvas').count(),1);assert.deepEqual(page.errors,[]);
  }finally{await page.close();}
 });
 test('countdown hidden tab, calibration invalidation and LOCAL TILT stopped data cancel instead of resuming',async()=>{
@@ -191,5 +191,47 @@ test('countdown sound waits for asynchronous AudioContext activation and respect
  const page=await pageFor();try{
  await page.evaluate(()=>{window.tones=[];window.AudioContext=class {constructor(){this.state='suspended';this.currentTime=0;this.destination={};}async resume(){await Promise.resolve();this.state='running';}createOscillator(){let hz;return {frequency:{setValueAtTime(n){hz=n;}},connect(){},disconnect(){},start(){window.tones.push(hz);},stop(){}};}createGain(){return {gain:{setValueAtTime(){},linearRampToValueAtTime(){},exponentialRampToValueAtTime(){}},connect(){},disconnect(){}};}};});
  await page.selectOption('#mode','test');await page.clock.pauseAt(new Date(await page.evaluate(()=>Date.now()+500)));await page.clock.runFor(32);await page.click('#center');await page.click('#start');await page.clock.runFor(3100);assert.deepEqual(await page.evaluate(()=>window.tones),[600,600,600,523,1047]);await page.click('#pause');await page.click('#quit');await page.locator('#staff').evaluate(e=>e.open=true);await page.uncheck('#audio-effects');await page.clock.runFor(32);await page.click('#center');await page.click('#start');await page.clock.runFor(3100);assert.deepEqual(await page.evaluate(()=>window.tones),[600,600,600,523,1047]);assert.equal(await page.evaluate(()=>document.body.dataset.phase),'play');assert.deepEqual(page.errors,[]);
+ }finally{await page.close();}
+});
+
+test('UI fixes: two image methods, emoji selection, responsive contacts and shared survival wording',async()=>{
+ const page=await pageFor();try{
+ assert.equal(await page.locator('#object-title').count(),0);assert.equal(await page.locator('#setup h1').textContent(),'シーソーゲーム');
+ assert.equal(await page.locator('[data-object^="MY_"]').count(),0);assert.equal(await page.locator('[data-object^="IMAGE_"]').count(),2);
+ await page.selectOption('#object-style','emoji');
+ for(const type of ['EGG','SOCCER_BALL','BASKETBALL','APPLE','CHICK','PEAR','CHESTNUT','MAPLE','LEAF','PUMPKIN','MUSHROOM']){await page.click(`[data-object="${type}"]`);assert.equal(await page.locator(`[data-object="${type}"] canvas, [data-object="${type}"] svg`).count(),1);}
+ for(const [width,height] of [[390,844],[1100,850],[844,390]]){
+ await page.setViewportSize({width,height});await page.locator('#play-duration').fill('5');await page.locator('#play-duration').dispatchEvent('input');await pcStart(page,'KEEP','SOCCER_BALL');
+ for(const tilt of ['0','-30','30']){
+ await page.locator('#tilt').fill(tilt);await page.locator('#tilt').dispatchEvent('input');await page.clock.runFor(150);
+ const contact=await page.evaluate(()=>{const scene=document.getElementById('scene'),p=document.querySelector('.pivot'),board=document.getElementById('platform'),egg=document.getElementById('egg');const ground=document.querySelector('.hill').getBoundingClientRect();const rect=p.getBoundingClientRect(),b=board.getBoundingClientRect(),e=egg.getBoundingClientRect(),s=scene.getBoundingClientRect();const a=new DOMMatrix(getComputedStyle(board).transform),cx=parseFloat(egg.style.left),cy=parseFloat(egg.style.top);return {groundError:rect.bottom-ground.top,pivotError:rect.top-(parseFloat(getComputedStyle(scene).getPropertyValue('--pivot-y'))+s.top),normalDistance:((cx-scene.clientWidth/2)*a.b-(cy-parseFloat(getComputedStyle(scene).getPropertyValue('--pivot-y')))*a.a),radius:egg.offsetWidth/2};});
+ assert.ok(Math.abs(contact.groundError)<1);assert.ok(Math.abs(contact.pivotError)<1);assert.ok(Math.abs(contact.normalDistance-(9+contact.radius))<.1);
+ }
+ await page.click('#pause');await page.click('#quit');
+ }
+ await pcStart(page,'SURVIVAL','CHESTNUT');await page.clock.runFor(5200);assert.equal(await page.locator('#total-stars').textContent(),'5.0秒 バランスできた！');await page.click('#gift-open');await page.waitForFunction(()=>!document.getElementById('gift-save').disabled);assert.equal(await page.locator('#gift-reuse').isDisabled(),true);assert.ok((await page.locator('#gift-reuse-note').textContent()).includes('ありません'));assert.deepEqual(page.errors,[]);
+ }finally{await page.close();}
+});
+test('participant confirmation erases game and gift photos, research data and preserves staff settings',async()=>{
+ const page=await pageFor();try{
+ await page.click('[data-level="hard"]');await page.locator('#staff').evaluate(e=>e.open=true);await page.locator('#audio-effects-volume').fill('25');await page.locator('#audio-effects-volume').dispatchEvent('input');
+ await page.click('[data-object="IMAGE_FILE"]');const png=await page.evaluate(()=>{const c=document.createElement('canvas');c.width=200;c.height=100;c.getContext('2d').fillRect(0,0,200,100);return c.toDataURL().split(',')[1];});await page.setInputFiles('#image-file',{name:'face.png',mimeType:'image/png',buffer:Buffer.from(png,'base64')});await page.waitForSelector('#crop-controls:not([hidden])');await page.click('#use-image');
+ await page.locator('#play-duration').fill('5');await page.locator('#play-duration').dispatchEvent('input');await page.selectOption('#mode','test');await page.clock.runFor(32);await page.click('#center');await page.click('#start');await page.clock.runFor(8300);await page.click('#gift-open');await page.click('#gift-reuse');assert.ok((await page.locator('#gift-status').textContent()).includes('了承'));await page.check('#gift-consent');await page.click('#gift-reuse');await page.waitForFunction(()=>!document.getElementById('gift-save').disabled);
+ const original=await page.locator('[data-object="IMAGE_FILE"] img').getAttribute('src');await page.locator('#gift-zoom-smile').fill('3');await page.locator('#gift-zoom-smile').dispatchEvent('input');assert.equal(await page.locator('[data-object="IMAGE_FILE"] img').getAttribute('src'),original);
+ const replacement=await page.evaluate(()=>{const c=document.createElement('canvas');c.width=100;c.height=100;const x=c.getContext('2d');x.fillStyle='red';x.fillRect(0,0,100,100);return c.toDataURL().split(',')[1];});await page.setInputFiles('#gift-file-smile',{name:'other.png',mimeType:'image/png',buffer:Buffer.from(replacement,'base64')});await page.waitForFunction(()=>!document.getElementById('gift-save').disabled);assert.equal(await page.locator('[data-object="IMAGE_FILE"] img').getAttribute('src'),original);
+ page.once('dialog',d=>d.dismiss());await page.click('#new-participant');assert.equal(await page.locator('#gift').isVisible(),true);assert.ok(await page.evaluate(()=>!!localStorage.getItem('keep-the-egg:last-trial')));
+ page.once('dialog',d=>d.accept());await page.click('#new-participant');assert.equal(await page.locator('#setup').isVisible(),true);assert.equal(await page.locator('[data-object^="IMAGE_"] img').count(),0);assert.equal(await page.evaluate(()=>localStorage.getItem('keep-the-egg:last-trial')),null);assert.equal(await page.locator('#metrics').textContent(),'');assert.equal(await page.locator('[data-level="hard"]').getAttribute('aria-pressed'),'true');assert.equal(await page.locator('#audio-effects-volume').inputValue(),'25');assert.equal(await page.locator('#play-duration').inputValue(),'5');assert.equal(await page.locator('#gift-consent').isChecked(),false);assert.equal(await page.locator('#gift-transfer').isVisible(),false);assert.deepEqual(page.errors,[]);
+ }finally{await page.close();}
+});
+test('both sports balls in SVG and emoji roll above tilted board and separate only when falling',async()=>{
+ const page=await pageFor();try{
+ for(const style of ['svg','emoji'])for(const type of ['SOCCER_BALL','BASKETBALL']){
+ await page.selectOption('#object-style',style);await page.locator('#play-duration').fill('30');await page.locator('#play-duration').dispatchEvent('input');await pcStart(page,'KEEP',type);
+ assert.equal(await page.locator(style==='svg'?'#egg svg':'#egg canvas').count(),1);
+ const before=await page.locator('#egg').evaluate(e=>e.style.transform);await page.locator('#tilt').fill('30');await page.locator('#tilt').dispatchEvent('input');await page.clock.runFor(800);assert.notEqual(await page.locator('#egg').evaluate(e=>e.style.transform),before);
+ let falling=false;for(let n=0;n<100;n++){await page.clock.runFor(100);if(await page.locator('#egg').evaluate(e=>Number(e.style.opacity)<.95)){falling=true;break;}}
+ assert.ok(falling);await page.clock.runFor(1600);await page.locator('#tilt').fill('0');await page.locator('#tilt').dispatchEvent('input');await page.clock.runFor(32);assert.equal(await page.locator('#egg').evaluate(e=>e.style.opacity),'1');await page.click('#pause');await page.click('#quit');
+ }
+ assert.deepEqual(page.errors,[]);
  }finally{await page.close();}
 });

@@ -1,5 +1,5 @@
-import { config, difficulties, gameModes, physicsSettings, playDuration } from './config.js?v=20261009-autumn';
-import { clamp } from './input.js?v=20261009-autumn';
+import { config, difficulties, gameModes, physicsSettings, playDuration } from './config.js?v=20261009-ui-physics';
+import { clamp } from './input.js?v=20261009-ui-physics';
 
 export class SeesawGame {
   constructor(difficulty = 'easy', { gameMode = 'STAR', objectType = 'EGG', inputMode = 'sensor', duration }  = {}) {

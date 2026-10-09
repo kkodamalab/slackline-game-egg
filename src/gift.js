@@ -1,5 +1,5 @@
-import { objects, gameModes } from './config.js?v=20261009-autumn';
-import { objectSVG } from './art.js?v=20261009-autumn';
+import { objects, gameModes, isImageObject } from './config.js?v=20261009-ui-physics';
+import { objectSVG, emojiCanvas } from './art.js?v=20261009-ui-physics';
 export function giftData(game, images = {}) {
   return { version: 1, gameName: 'シーソーゲーム：〇〇を落とすな！', gameMode: game.gameMode,
     objectType: game.objectType, result: game.summary(), images: { ...images },
@@ -7,7 +7,7 @@ export function giftData(game, images = {}) {
 }
 export function resultText(data) {
   const s = data.result;
-  return data.gameMode === 'STAR' ? `落ち葉を${s.leafCount ?? s.starCount}枚あつめたよ！` : data.gameMode === 'KEEP' ? `落下 ${s.dropCount} 回` : `生存 ${s.survivalTime.toFixed(1)} 秒`;
+  return data.gameMode === 'STAR' ? `落ち葉を${s.leafCount ?? s.starCount}枚あつめたよ！` : data.gameMode === 'KEEP' ? `落下 ${s.dropCount} 回` : `${s.survivalTime.toFixed(1)}秒 バランスできた！`;
 }
 export const giftDefaults = { layout:'A', orientation:'portrait', background:'natural', frame:'simple', title:true, result:true, event:true, object:true };
 export const giftColors = { natural:'#f7f5e9', sky:'#dff1ff', grass:'#e6f1cf', cream:'#fff2ce', pink:'#ffe4ed' };
@@ -39,7 +39,7 @@ export async function drawGift(canvas,data,options = giftDefaults,photos = {}) {
   ctx.textAlign='center';ctx.fillStyle='#315e4b';
   if(o.title){ctx.font='bold 48px sans-serif';ctx.fillText('シーソーゲーム',w/2,85);ctx.font='bold 34px sans-serif';ctx.fillText(o.object?`${objects[data.objectType].label}を落とすな！`:'よく がんばったね！',w/2,145);}
   for(const r of geometry.rects){const photo=photos[r.kind];const img=await decode(typeof photo==='string'?photo:photo.src);drawPhoto(ctx,img,r,photo.crop);}
-  if(!geometry.rects.length){const type=data.objectType.startsWith('MY_')?'EGG':data.objectType;const img=await decode('data:image/svg+xml;charset=utf-8,'+encodeURIComponent(objectSVG(type)));ctx.drawImage(img,w/2-140,(o.title?220:80),280,294);ctx.font='bold 36px sans-serif';ctx.fillText('バランスに チャレンジ！',w/2,h*.5);}
+  if(!geometry.rects.length){const type=isImageObject(data.objectType)?'EGG':data.objectType;const img=(data.objectStyle==='emoji' || ['PEAR','CHESTNUT','MAPLE','LEAF','PUMPKIN','MUSHROOM'].includes(type)) ? (emojiCanvas(type) || await decode('data:image/svg+xml;charset=utf-8,'+encodeURIComponent(objectSVG(type)))) : await decode('data:image/svg+xml;charset=utf-8,'+encodeURIComponent(objectSVG(type)));ctx.drawImage(img,w/2-140,(o.title?220:80),280,294);ctx.font='bold 36px sans-serif';ctx.fillText('バランスに チャレンジ！',w/2,h*.5);}
   if(o.frame!=='simple'){
     ctx.fillStyle=o.frame==='pop'?'#e2b54b':'#78a566';
     for(let i=0;i<12;i++){const x=25+i*(w-50)/11;for(const y of [25,h-25]){ctx.beginPath();if(o.frame==='pop')ctx.arc(x,y,12,0,Math.PI*2);else ctx.ellipse(x,y,12,20,i%2?-.5:.5,0,Math.PI*2);ctx.fill();}}

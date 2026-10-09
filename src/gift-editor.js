@@ -1,6 +1,6 @@
-import { drawGift, giftDefaults } from './gift.js?v=20261009-autumn';
-import { loadImage, saveCanvas } from './images.js?v=20261009-autumn';
-import { GiftSender } from './gift-transfer.js?v=20261009-autumn';
+import { drawGift, giftDefaults } from './gift.js?v=20261009-ui-physics';
+import { loadImage, saveCanvas } from './images.js?v=20261009-ui-physics';
+import { GiftSender } from './gift-transfer.js?v=20261009-ui-physics';
 export class GiftEditor {
   constructor(onErase = () => {}) {
     this.photos={};this.options={...giftDefaults};this.version=0;this.photoVersion=0;this.drawGeneration=0;this.onErase=onErase;
@@ -9,7 +9,7 @@ export class GiftEditor {
       <label><input id="gift-consent" type="checkbox">写真の利用・転送の了承を得ました</label>
       <div class="gift-materials">${['smile','drawing'].map(k=>`<fieldset><legend>${k==='smile'?'笑顔・記念写真':'お絵かき作品'}</legend><label>画像を選ぶ<input id="gift-file-${k}" type="file" accept="image/jpeg,image/png,image/webp"></label><button id="gift-camera-${k}" class="secondary">撮影・撮り直す</button><button id="gift-remove-${k}" class="quiet">この写真を消す</button><label>拡大<input id="gift-zoom-${k}" type="range" min="1" max="4" step=".05" value="1"></label><label>左右<input id="gift-x-${k}" type="range" min="-1" max="1" step=".02" value="0"></label><label>上下<input id="gift-y-${k}" type="range" min="-1" max="1" step=".02" value="0"></label></fieldset>`).join('')}</div>
       <button id="gift-reuse" class="secondary">ゲームの画像を笑顔写真に使う</button>
-      <div id="gift-camera-panel" hidden><video id="gift-video" muted autoplay playsinline></video><button id="gift-capture" class="secondary">撮影する</button><button id="gift-camera-close" class="quiet">カメラを閉じる</button></div>
+      <p id="gift-reuse-note" role="status"></p><div id="gift-camera-panel" hidden><video id="gift-video" muted autoplay playsinline></video><button id="gift-capture" class="secondary">撮影する</button><button id="gift-camera-close" class="quiet">カメラを閉じる</button></div>
       <div class="gift-options"><label>レイアウト<select id="gift-layout"><option value="A">A：笑顔と作品を左右に</option><option value="B">B：笑顔を大きく</option><option value="C">C：作品を大きく</option><option value="D">D：笑顔1枚</option><option value="E">E：作品1枚</option></select></label>
       <label>向き<select id="gift-orientation"><option value="portrait">たて</option><option value="landscape">よこ</option></select></label>
       <label>背景<select id="gift-background"><option value="natural">ナチュラル</option><option value="sky">空色</option><option value="grass">若草色</option><option value="cream">クリーム</option><option value="pink">ピンク</option></select></label>
@@ -39,7 +39,7 @@ export class GiftEditor {
   consent(){if(this.$('gift-consent').checked)return true;this.$('gift-status').textContent='写真を使う前に、本人・保護者の了承を確認してチェックしてください。';return false;}
   async camera(k){if(!this.consent())return;this.closeCamera();const version=this.photoVersion;this.cameraKind=k;try{const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:k==='smile'?'user':'environment',width:1280,height:720},audio:false});if(version!==this.photoVersion){stream.getTracks().forEach(t=>t.stop());return;}this.stream=stream;this.$('gift-video').srcObject=stream;this.$('gift-camera-panel').hidden=false;await this.$('gift-video').play();}catch{this.closeCamera();this.$('gift-status').textContent='カメラを使えません。画像ファイルを選んでください。';}}
   closeCamera(increment=true){if(increment)this.photoVersion++;this.stream?.getTracks().forEach(t=>t.stop());this.stream=null;this.$('gift-video').srcObject=null;this.$('gift-camera-panel').hidden=true;}
-  open(data){this.closeCamera();this.stopTransfer();this.version++;this.data=data;this.$('gift-reuse').disabled=!data.images[data.objectType];this.render();}
+  open(data){this.closeCamera();this.stopTransfer();this.version++;this.data=data;this.$('gift-reuse').disabled=!data.images[data.objectType];this.$('gift-reuse-note').textContent=data.images[data.objectType]?'了承を確認して、ゲームで使った画像を設定できます。':'ゲームに取り込んだ画像がありません。標準オブジェクトは写真として流用しません。';this.render();}
   close(){this.version++;this.drawGeneration++;this.closeCamera();this.stopTransfer();}
   stopTransfer(){this.sender.stop();this.$('gift-transfer').hidden=true;this.$('gift-qr').replaceChildren();this.$('gift-link').removeAttribute('href');this.$('gift-link').textContent='';this.$('gift-transfer-status').textContent='';}
   invalidate(){this.stopTransfer();this.render();}
