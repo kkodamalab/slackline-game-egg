@@ -115,6 +115,7 @@ test('PHOTO GIFT actual chunked WebRTC PNG: dedicated QR, phone layouts, retry, 
  try{
  await host.clock.install();await host.goto(origin);await host.selectOption('#mode','test');await host.locator('#play-duration').fill('5');await host.locator('#play-duration').dispatchEvent('input');await host.clock.runFor(32);await host.click('#center');await host.click('#start');await host.clock.runFor(5100);await host.click('#gift-open');await host.waitForFunction(()=>!document.getElementById('gift-save').disabled);
  await host.clock.resume();
+ await host.check('#gift-consent');
  // Real entropy makes a multi-chunk PNG, instead of a trivial one-pixel payload.
  const picture=await host.evaluate(()=>{const c=document.createElement('canvas');c.width=700;c.height=900;const ctx=c.getContext('2d'),d=ctx.createImageData(700,900);for(let i=0;i<d.data.length;i+=4){d.data[i]=(i*13)%251;d.data[i+1]=(i*17)%239;d.data[i+2]=Math.random()*255;d.data[i+3]=255;}ctx.putImageData(d,0,0);return c.toDataURL('image/png').split(',')[1];});
  await host.setInputFiles('#gift-file-smile',{name:'smile.png',mimeType:'image/png',buffer:Buffer.from(picture,'base64')});await host.waitForFunction(()=>!document.getElementById('gift-send').disabled);await host.check('#gift-consent');await host.click('#gift-send');await host.waitForSelector('#gift-qr canvas',{state:'attached'});

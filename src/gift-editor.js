@@ -16,14 +16,14 @@ export class GiftEditor {
       <label>フレーム<select id="gift-frame"><option value="simple">シンプル</option><option value="pop">ポップ</option><option value="nature">自然・草木</option></select></label>
       ${['title','result','event','object'].map((k,i)=>`<label><input type="checkbox" id="gift-${k}" checked>${['タイトル','ゲーム結果','イベント情報','オブジェクト名'][i]}</label>`).join('')}</div>`;
     for(const k of ['smile','drawing']){
-      $(`gift-file-${k}`).onchange=async()=>{const f=$(`gift-file-${k}`).files[0];if(!f)return;const v=++this.photoVersion;this.closeCamera(false);try{const source=await loadImage(f);if(v===this.photoVersion)this.setPhoto(k,source);}catch(e){$('gift-status').textContent=e.message;}finally{$(`gift-file-${k}`).value='';}};
+      $(`gift-file-${k}`).onchange=async()=>{const f=$(`gift-file-${k}`).files[0];if(!f)return;if(!this.consent()){$(`gift-file-${k}`).value='';return;}const v=++this.photoVersion;this.closeCamera(false);try{const source=await loadImage(f);if(v===this.photoVersion)this.setPhoto(k,source);}catch(e){$('gift-status').textContent=e.message;}finally{$(`gift-file-${k}`).value='';}};
       $(`gift-camera-${k}`).onclick=()=>this.camera(k);$(`gift-remove-${k}`).onclick=()=>{this.photoVersion++;delete this.photos[k];this.invalidate();};
       for(const a of ['zoom','x','y'])$(`gift-${a}-${k}`).oninput=()=>{if(this.photos[k]){this.photos[k].crop[a]=Number($(`gift-${a}-${k}`).value);this.invalidate();}};
     }
     for(const k of ['layout','orientation','background','frame','title','result','event','object'])$(`gift-${k}`).onchange=()=>{this.options[k]=$(`gift-${k}`).type==='checkbox'?$(`gift-${k}`).checked:$(`gift-${k}`).value;this.invalidate();};
-    $('gift-reuse').onclick=async()=>{const src=this.data?.images[this.data.objectType];if(src){this.photoVersion++;this.photos.smile={src,crop:{zoom:1,x:0,y:0}};this.resetCrop('smile');this.invalidate();}};
+    $('gift-reuse').onclick=async()=>{if(!this.consent())return;const src=this.data?.images[this.data.objectType];if(src){this.photoVersion++;this.photos.smile={src,crop:{zoom:1,x:0,y:0}};this.resetCrop('smile');this.invalidate();}};
     $('gift-camera-close').onclick=()=>this.closeCamera();$('gift-capture').onclick=()=>{const v=$('gift-video');if(!v.videoWidth)return;const c=document.createElement('canvas'),scale=Math.min(1,1600/Math.max(v.videoWidth,v.videoHeight));c.width=Math.round(v.videoWidth*scale);c.height=Math.round(v.videoHeight*scale);c.getContext('2d').drawImage(v,0,0,c.width,c.height);const k=this.cameraKind;this.closeCamera();this.setPhoto(k,c);};
-    $('gift-save').onclick=async()=>{try{await saveCanvas($('gift-canvas'),'kaze-ni-tatsu-2026-10-18.png');}catch(e){$('gift-status').textContent=e.message;}};
+    $('gift-save').onclick=async()=>{if(Object.keys(this.photos).length&&!this.consent())return;try{await saveCanvas($('gift-canvas'),'kaze-ni-tatsu-2026-10-18.png');}catch(e){$('gift-status').textContent=e.message;}};
     $('gift-send').onclick=async()=>{
       if(!$('gift-consent').checked){$('gift-transfer-status').textContent='写真を送る前に、本人・保護者の了承を確認してください。';return;}
       const generation=this.version,draw=this.drawGeneration;$('gift-send').disabled=true;
@@ -36,7 +36,8 @@ export class GiftEditor {
   }
   resetCrop(k){for(const a of ['zoom','x','y'])this.$(`gift-${a}-${k}`).value=a==='zoom'?1:0;}
   setPhoto(k,source){this.photos[k]={src:source.toDataURL('image/png'),crop:{zoom:1,x:0,y:0}};this.resetCrop(k);this.invalidate();}
-  async camera(k){this.closeCamera();const version=this.photoVersion;this.cameraKind=k;try{const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:k==='smile'?'user':'environment',width:1280,height:720},audio:false});if(version!==this.photoVersion){stream.getTracks().forEach(t=>t.stop());return;}this.stream=stream;this.$('gift-video').srcObject=stream;this.$('gift-camera-panel').hidden=false;await this.$('gift-video').play();}catch{this.closeCamera();this.$('gift-status').textContent='カメラを使えません。画像ファイルを選んでください。';}}
+  consent(){if(this.$('gift-consent').checked)return true;this.$('gift-status').textContent='写真を使う前に、本人・保護者の了承を確認してチェックしてください。';return false;}
+  async camera(k){if(!this.consent())return;this.closeCamera();const version=this.photoVersion;this.cameraKind=k;try{const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:k==='smile'?'user':'environment',width:1280,height:720},audio:false});if(version!==this.photoVersion){stream.getTracks().forEach(t=>t.stop());return;}this.stream=stream;this.$('gift-video').srcObject=stream;this.$('gift-camera-panel').hidden=false;await this.$('gift-video').play();}catch{this.closeCamera();this.$('gift-status').textContent='カメラを使えません。画像ファイルを選んでください。';}}
   closeCamera(increment=true){if(increment)this.photoVersion++;this.stream?.getTracks().forEach(t=>t.stop());this.stream=null;this.$('gift-video').srcObject=null;this.$('gift-camera-panel').hidden=true;}
   open(data){this.closeCamera();this.stopTransfer();this.version++;this.data=data;this.$('gift-reuse').disabled=!data.images[data.objectType];this.render();}
   close(){this.version++;this.drawGeneration++;this.closeCamera();this.stopTransfer();}

@@ -33,7 +33,7 @@ export class FeedbackEvents {
 export class SpeechPlayer {
   constructor(env = globalThis, onStatus = () => {}) {
     this.env = env; this.onStatus = onStatus; this.speech = env.speechSynthesis;
-    this.refresh = () => { this.voice = this.speech?.getVoices().find(v => /^ja(?:-|_)/i.test(v.lang)); onStatus(!this.speech ? 'このブラウザーは音声に対応していません。' : this.voice ? '日本語音声を使えます。' : '日本語音声が見つかりません。効果音で遊べます。'); };
+    this.refresh = () => { const voices=this.speech?.getVoices() ?? []; this.voice = voices.find(v => /^ja[-_]JP$/i.test(v.lang)) ?? voices.find(v => /^ja(?:[-_]|$)/i.test(v.lang)); onStatus(!this.speech ? 'このブラウザーは音声に対応していません。' : this.voice ? '日本語音声を使えます。' : '日本語音声が見つかりません。効果音で遊べます。'); };
     this.speech?.addEventListener?.('voiceschanged',this.refresh); this.refresh();
   }
   play(text,volume) {
