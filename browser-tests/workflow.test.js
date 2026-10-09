@@ -36,13 +36,13 @@ for(const mode of ['KEEP','STAR','SURVIVAL'])test(`PC ${mode}: complete, results
  assert.ok(text.includes('eggPosition'));assert.ok(text.includes('trackingConfidence'));assert.ok(text.includes(mode));assert.ok(!text.includes('data:image'));
  await page.click('#gift-open');await page.waitForFunction(()=>!document.getElementById('gift-save').disabled);
  const pngPromise=page.waitForEvent('download');await page.click('#gift-save');const png=await pngPromise;const data=await png.createReadStream();const chunks=[];for await(const c of data)chunks.push(c);const bytes=Buffer.concat(chunks);
- assert.equal(bytes.subarray(1,4).toString(),'PNG');assert.equal(bytes.readUInt32BE(16),720);assert.equal(bytes.readUInt32BE(20),1080);
+ assert.equal(bytes.subarray(1,4).toString(),'PNG');assert.equal(bytes.readUInt32BE(16),1080);assert.equal(bytes.readUInt32BE(20),1620);
  assert.deepEqual(page.errors,[]);
  }finally{await page.close();}
 });
 test('SURVIVAL falls immediately; pause freezes and resume/replay work',async()=>{
  const page=await pageFor();try{
- await pcStart(page,'SURVIVAL','BALL');await page.clock.runFor(1000);await page.click('#pause');const time=await page.locator('#time').textContent();
+ await pcStart(page,'SURVIVAL','SOCCER_BALL');await page.clock.runFor(1000);await page.click('#pause');const time=await page.locator('#time').textContent();
  await page.clock.runFor(5000);assert.equal(await page.locator('#time').textContent(),time);
  await page.click('#resume');await page.locator('#tilt').fill('30');await page.locator('#tilt').dispatchEvent('input');await page.clock.runFor(10000);
  const stats=JSON.parse(await page.locator('#metrics').textContent());assert.equal(stats.dropCount,1);assert.ok(stats.survivalTime<10);
@@ -123,4 +123,27 @@ test('slow startup cannot lose a mode or difficulty choice before event registra
  await page.waitForFunction(()=>!document.getElementById('center').disabled);await page.click('#center');await page.click('#start');
  assert.equal(await page.locator('#time-label').textContent(),'いま');assert.equal(await page.locator('[data-level="hard"]').getAttribute('aria-pressed'),'true');
  }finally{release?.();await page.close();}
+});
+test('variable time, rolling balls, sound preferences and gift five layouts with editable independent photos',async()=>{
+ const page=await pageFor();try{
+ await page.locator('#staff').evaluate(e=>e.open=true);await page.selectOption('#audio-alert','whistle');await page.locator('#audio-effects-volume').fill('25');await page.locator('#audio-effects-volume').dispatchEvent('input');await page.selectOption('#audio-voice-mode','SELECT');await page.selectOption('#audio-phrase','まんなか！');await page.selectOption('#audio-event','star');await page.click('#audio-test');
+ const prefs=JSON.parse(await page.evaluate(()=>localStorage.getItem('seesaw:audio')));assert.equal(prefs.alert,'whistle');assert.equal(prefs.effectsVolume,.25);assert.equal(prefs.voiceMode,'SELECT');await page.reload();await page.waitForFunction(()=>document.body.dataset.appReady==='true');assert.equal(await page.locator('#audio-alert').inputValue(),'whistle');
+ await page.locator('#play-duration').fill('5');await page.locator('#play-duration').dispatchEvent('input');assert.equal(await page.locator('#play-duration-value').textContent(),'5びょう');await pcStart(page,'STAR','BASKETBALL');await page.locator('#tilt').fill('10');await page.locator('#tilt').dispatchEvent('input');await page.clock.runFor(900);const rotation1=await page.locator('#egg').evaluate(e=>e.style.transform);await page.clock.runFor(500);assert.notEqual(await page.locator('#egg').evaluate(e=>e.style.transform),rotation1);await page.locator('#tilt').fill('0');await page.locator('#tilt').dispatchEvent('input');await page.clock.runFor(4100);
+ const stats=JSON.parse(await page.locator('#metrics').textContent());assert.equal(stats.configuredDuration,5);assert.ok(stats.starCount<=2);await page.click('#gift-open');await page.waitForFunction(()=>!document.getElementById('gift-save').disabled);
+ await page.check('#gift-consent');
+ for(const k of ['smile','drawing']){const bytes=await page.evaluate(k=>{const c=document.createElement('canvas');c.width=900;c.height=600;const x=c.getContext('2d');x.fillStyle=k==='smile'?'#ff0000':'#0000ff';x.fillRect(0,0,900,600);return c.toDataURL('image/png').split(',')[1];},k);await page.setInputFiles(`#gift-file-${k}`,{name:k+'.png',mimeType:'image/png',buffer:Buffer.from(bytes,'base64')});await page.waitForFunction(()=>!document.getElementById('gift-save').disabled);}
+ for(const layout of ['A','B','C','D','E'])for(const orientation of ['portrait','landscape']){await page.selectOption('#gift-layout',layout);await page.selectOption('#gift-orientation',orientation);await page.waitForFunction(()=>!document.getElementById('gift-save').disabled);const geometry=await page.locator('#gift-canvas').evaluate(c=>[c.width,c.height]);assert.deepEqual(geometry,orientation==='portrait'?[1080,1620]:[1620,1080]);}
+ await page.locator('#gift-zoom-smile').fill('2');await page.locator('#gift-zoom-smile').dispatchEvent('input');await page.locator('#gift-x-smile').fill('1');await page.locator('#gift-x-smile').dispatchEvent('input');await page.selectOption('#gift-background','pink');await page.selectOption('#gift-frame','nature');await page.waitForFunction(()=>!document.getElementById('gift-save').disabled);
+ const colors=await page.locator('#gift-canvas').evaluate(c=>Array.from(c.getContext('2d').getImageData(400,400,1,1).data));assert.deepEqual(colors.slice(0,3),[0,0,255]); // E uses independent drawing, not smile/object.
+ await page.click('#gift-remove-drawing');await page.waitForFunction(()=>!document.getElementById('gift-save').disabled);const color=await page.locator('#gift-canvas').evaluate(c=>Array.from(c.getContext('2d').getImageData(400,400,1,1).data));assert.deepEqual(color.slice(0,3),[255,0,0]);
+ await page.click('#gift-discard');await page.waitForFunction(()=>!document.getElementById('gift-save').disabled);await page.click('#gift-back');await page.click('#other-game');assert.equal(await page.locator('[data-object="MY_FACE"] img').count(),0);assert.deepEqual(page.errors,[]);
+ }finally{await page.close();}
+});
+test('PHOTO GIFT camera captures and retakes both independent materials, closes all tracks',async()=>{
+ const page=await pageFor({clock:false});try{
+ await page.selectOption('#mode','test');await page.locator('#play-duration').fill('5');await page.locator('#play-duration').dispatchEvent('input');await page.waitForFunction(()=>!document.getElementById('center').disabled);await page.click('#center');await page.click('#start');await page.waitForSelector('#result:not([hidden])',{timeout:10000});await page.click('#gift-open');
+ await page.check('#gift-consent');
+ for(const k of ['smile','drawing']){await page.click(`#gift-camera-${k}`);await page.waitForFunction(()=>document.getElementById('gift-video').videoWidth>0);await page.evaluate(()=>window.giftStream=document.getElementById('gift-video').srcObject);await page.click('#gift-capture');assert.equal(await page.evaluate(()=>window.giftStream.getTracks().every(t=>t.readyState==='ended')),true);await page.waitForFunction(()=>!document.getElementById('gift-save').disabled);}
+ await page.click('#gift-camera-smile');await page.waitForSelector('#gift-camera-panel:not([hidden])');await page.evaluate(()=>window.giftStream=document.getElementById('gift-video').srcObject);await page.click('#gift-back');assert.equal(await page.evaluate(()=>window.giftStream.getTracks().every(t=>t.readyState==='ended')),true);assert.deepEqual(page.errors,[]);
+ }finally{await page.close();}
 });

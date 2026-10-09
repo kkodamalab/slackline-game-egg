@@ -61,7 +61,7 @@ test('real generated QR decodes to correct Controller URL, and titles follow eve
  const decoded=jsQR(Uint8ClampedArray.from(pixels.data),pixels.width,pixels.height);assert.ok(decoded);
  assert.equal(decoded.data,await page.locator('#controller-link').getAttribute('href'));
  assert.equal(new URL(decoded.data).pathname,'/');assert.ok((await page.locator('#room-code').textContent()).includes(new URL(decoded.data).searchParams.get('room')));
- for(const [type,name] of [['EGG','たまご'],['BALL','ボール'],['APPLE','りんご'],['CHICK','ひよこ'],['MY_FACE','じぶんの顔'],['MY_DRAWING','じぶんの絵'],['MY_PHOTO','写真']]){
+ for(const [type,name] of [['EGG','たまご'],['SOCCER_BALL','サッカーボール'],['BASKETBALL','バスケットボール'],['APPLE','りんご'],['CHICK','ひよこ'],['MY_FACE','じぶんの顔'],['MY_DRAWING','じぶんの絵'],['MY_PHOTO','写真']]){
  await page.click(`[data-object="${type}"]`);assert.equal(await page.locator('#object-title').textContent(),`${name}を落とすな！`);assert.ok((await page.title()).includes(name));}
  }finally{await context.close();}
 });
@@ -109,4 +109,26 @@ test('real DataChannel carries simulated sensor permission, rotation and stale s
  await p.phone.click('#controller-center');await p.host.waitForFunction(()=>document.getElementById('center-state').textContent.includes('✓'));await p.host.click('#resume');
  await p.host.waitForFunction(()=>!document.getElementById('pause-panel').hidden,{timeout:6000});assert.deepEqual(p.errors,[]);
  }finally{await p.close();}
+});
+test('PHOTO GIFT actual chunked WebRTC PNG: dedicated QR, phone layouts, retry, save and erase',async()=>{
+ const hc=await contextFor(),rc=await contextFor(),host=await hc.newPage(),receiver=await rc.newPage();const errors=[];for(const p of [host,receiver])p.on('pageerror',e=>errors.push(e.message));
+ try{
+ await host.clock.install();await host.goto(origin);await host.selectOption('#mode','test');await host.locator('#play-duration').fill('5');await host.locator('#play-duration').dispatchEvent('input');await host.clock.runFor(32);await host.click('#center');await host.click('#start');await host.clock.runFor(5100);await host.click('#gift-open');await host.waitForFunction(()=>!document.getElementById('gift-save').disabled);
+ await host.clock.resume();
+ await host.check('#gift-consent');
+ // Real entropy makes a multi-chunk PNG, instead of a trivial one-pixel payload.
+ const picture=await host.evaluate(()=>{const c=document.createElement('canvas');c.width=700;c.height=900;const ctx=c.getContext('2d'),d=ctx.createImageData(700,900);for(let i=0;i<d.data.length;i+=4){d.data[i]=(i*13)%251;d.data[i+1]=(i*17)%239;d.data[i+2]=Math.random()*255;d.data[i+3]=255;}ctx.putImageData(d,0,0);return c.toDataURL('image/png').split(',')[1];});
+ await host.setInputFiles('#gift-file-smile',{name:'smile.png',mimeType:'image/png',buffer:Buffer.from(picture,'base64')});await host.waitForFunction(()=>!document.getElementById('gift-send').disabled);await host.check('#gift-consent');await host.click('#gift-send');await host.waitForSelector('#gift-qr canvas',{state:'attached'});
+ const pixels=await host.locator('#gift-qr canvas').evaluate(c=>({width:c.width,height:c.height,data:Array.from(c.getContext('2d').getImageData(0,0,c.width,c.height).data)}));const code=jsQR(Uint8ClampedArray.from(pixels.data),pixels.width,pixels.height);assert.ok(code);const url=code.data;assert.equal(new URL(url).searchParams.has('player'),false);assert.equal(new URL(url).searchParams.get('token').length,64);
+ await receiver.setViewportSize({width:390,height:844});await receiver.goto(url);await receiver.waitForSelector('#receive-save:not([hidden])',{timeout:30000});assert.equal(await receiver.locator('#controller-app').isVisible(),false);assert.equal(await receiver.locator('#host-app').isVisible(),false);assert.equal(await receiver.locator('#receive-image').evaluate(i=>i.naturalWidth),1080);
+ const download=receiver.waitForEvent('download');await receiver.click('#receive-save');const stream=await (await download).createReadStream();const parts=[];for await(const b of stream)parts.push(b);const png=Buffer.concat(parts);assert.ok(png.length>48*1024);assert.equal(png.readUInt32BE(16),1080);assert.equal(png.readUInt32BE(20),1620);
+ const original=await host.locator('#gift-canvas').evaluate(c=>c.toDataURL('image/png').split(',')[1]);assert.deepEqual(png,Buffer.from(original,'base64'));
+ await receiver.click('#receive-retry');await receiver.waitForSelector('#receive-save:not([hidden])',{timeout:30000});
+ await receiver.setViewportSize({width:412,height:915});assert.equal(await receiver.locator('#receive-save').isVisible(),true);
+ // Stop a transfer after a chunk, then reconnect to the same capability.
+ await receiver.route('**/src/gift-transfer.js*',async route=>{const response=await route.fetch();await route.fulfill({response,body:(await response.text()).replace("conn.send({type:'ack',index});", "if(index!==0)conn.send({type:'ack',index});")});});
+ await receiver.reload();await receiver.waitForFunction(()=>document.getElementById('receive-status').textContent.includes('受信中'));await receiver.unroute('**/src/gift-transfer.js*');await receiver.reload();await receiver.waitForSelector('#receive-save:not([hidden])',{timeout:30000});
+ await receiver.click('#receive-discard');assert.equal(await receiver.locator('#receive-image').getAttribute('src'),null);assert.equal(await receiver.locator('#receive-save').getAttribute('href'),null);
+ await host.click('#new-participant');assert.equal(await host.locator('#setup').isVisible(),true);await host.selectOption('#mode','test');await host.clock.runFor(32);await host.click('#center');await host.click('#start');await host.clock.runFor(5100);await host.click('#gift-open');await host.waitForFunction(()=>!document.getElementById('gift-save').disabled);assert.equal(await host.locator('#gift-reuse').isDisabled(),true);assert.equal(await host.locator('#gift-consent').isChecked(),false);assert.equal(await host.locator('#gift-transfer').isVisible(),false);assert.deepEqual(errors,[]);
+ }catch(e){console.log('GIFT DIAG',await host.locator('#gift-transfer-status').textContent(),await receiver.locator('#receive-status').textContent(),errors);throw e;}finally{await hc.close();await rc.close();}
 });

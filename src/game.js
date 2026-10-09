@@ -1,13 +1,13 @@
-import { config, difficulties, gameModes, physicsSettings } from './config.js?v=20261009-phone-restoration';
-import { clamp } from './input.js?v=20261009-phone-restoration';
+import { config, difficulties, gameModes, physicsSettings, playDuration } from './config.js?v=20261009-audio-gift';
+import { clamp } from './input.js?v=20261009-audio-gift';
 
 export class SeesawGame {
-  constructor(difficulty = 'easy', { gameMode = 'STAR', objectType = 'EGG', inputMode = 'sensor' } = {}) {
+  constructor(difficulty = 'easy', { gameMode = 'STAR', objectType = 'EGG', inputMode = 'sensor', duration }  = {}) {
     if (!difficulties[difficulty]) throw new Error('Unknown difficulty');
     this.difficulty = difficulty;
     if (!gameModes[gameMode]) throw new Error('Unknown game mode');
     this.gameMode = gameMode; this.objectType = objectType; this.inputMode = inputMode;
-    this.duration = gameModes[gameMode].duration; this.paused = false;
+    this.duration = duration === undefined ? gameModes[gameMode].duration : playDuration(duration); this.maxStars = Math.floor(this.duration / config.starSeconds); this.rotation = 0; this.paused = false;
     this.settings = physicsSettings(difficulty, objectType);
     this.elapsed = 0; this.position = 0; this.velocity = 0;
     this.stars = 0; this.drops = 0; this.safeTime = 0; this.streak = 0;
@@ -32,7 +32,7 @@ export class SeesawGame {
       this.velocity += (p.gravity * Math.sin(gameAngle * Math.PI / 180) - centering * this.position) * dt;
       this.velocity *= Math.exp(-p.damping * dt);
       this.velocity = clamp(this.velocity, -p.maxSpeed, p.maxSpeed);
-      this.position += this.velocity * dt;
+      this.position += this.velocity * dt; this.rotation += this.velocity * dt * 500;
       if (Math.abs(this.position) > 1) {
         this.drops++; if (this.gameMode === 'SURVIVAL') this.done = true; this.respawn = config.respawnSeconds; this.streak = 0;
       }
@@ -42,7 +42,7 @@ export class SeesawGame {
       this.safeTime += dt;
       const before = Math.floor((this.streak + 1e-8) / config.starSeconds);
       this.streak += dt;
-      if (this.gameMode === 'STAR') this.stars = Math.min(15, this.stars + Math.floor((this.streak + 1e-8) / config.starSeconds) - before);
+      if (this.gameMode === 'STAR') this.stars = Math.min(this.maxStars, this.stars + Math.floor((this.streak + 1e-8) / config.starSeconds) - before);
     } else this.streak = 0;
     this.elapsed += dt;
     this.angleSum += relativeAngle * dt;
@@ -51,7 +51,7 @@ export class SeesawGame {
     if (this.elapsed + 1e-8 >= this.nextSample) {
       this.samples.push({ timestamp: +this.elapsed.toFixed(4), rawAngle, relativeAngle,
         eggPosition: this.position, eggVelocity: this.velocity, isSafeZone: this.isSafe, difficulty: this.difficulty, gameMode: this.gameMode, objectType: this.objectType, inputMode: this.inputMode,
-        survivalTime: this.elapsed, dropCount: this.drops, starCount: this.stars,
+        configuredDuration: this.duration, survivalTime: this.elapsed, dropCount: this.drops, starCount: this.stars,
         bodyAxisAngle: input.bodyAxisAngle ?? '', trackingConfidence: input.trackingConfidence ?? '' });
       this.nextSample = this.elapsed + config.sampleInterval;
     }
@@ -64,7 +64,7 @@ export class SeesawGame {
     return { trialDuration: time, meanAngle: mean, SDAngle: Math.sqrt(Math.max(0, square - mean * mean)),
       RMSE_from_zero: Math.sqrt(square), maxAbsAngle: this.maxAbsAngle,
       safeZoneTime: this.safeTime, safeZonePercentage: time ? this.safeTime / time * 100 : 0,
-      numberOfEggDrops: this.drops, stars: this.stars, gameMode: this.gameMode, objectType: this.objectType, inputMode: this.inputMode, difficulty: this.difficulty, survivalTime: time, dropCount: this.drops, starCount: this.stars };
+      numberOfEggDrops: this.drops, stars: this.stars, gameMode: this.gameMode, objectType: this.objectType, inputMode: this.inputMode, difficulty: this.difficulty, configuredDuration: this.duration, survivalTime: time, dropCount: this.drops, starCount: this.stars };
   }
 }
 

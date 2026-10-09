@@ -1,7 +1,7 @@
-import { TiltInput, VBFInput } from './input.js?v=20261009-phone-restoration';
-import { PeerBus } from './peer-bus.js?v=20261009-phone-restoration';
-import { tiltPacket } from './remote-input.js?v=20261009-phone-restoration';
-import { config } from './config.js?v=20261009-phone-restoration';
+import { TiltInput, VBFInput } from './input.js?v=20261009-audio-gift';
+import { PeerBus } from './peer-bus.js?v=20261009-audio-gift';
+import { tiltPacket } from './remote-input.js?v=20261009-audio-gift';
+import { config } from './config.js?v=20261009-audio-gift';
 const $ = id => document.getElementById(id);
 
 export function startController(room, { test = false } = {}) {

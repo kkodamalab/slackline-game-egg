@@ -1,13 +1,18 @@
-import { config, objects, gameModes } from './config.js?v=20261009-phone-restoration';
-import { VBFInput, TiltInput, clamp } from './input.js?v=20261009-phone-restoration';
-import { SeesawGame, toCSV } from './game.js?v=20261009-phone-restoration';
-import { BodyInput, BodyCamera } from './body.js?v=20261009-phone-restoration';
-import { renderObject } from './art.js?v=20261009-phone-restoration';
-import { loadImage, drawCrop, saveCanvas } from './images.js?v=20261009-phone-restoration';
-import { giftData, drawGift, resultText } from './gift.js?v=20261009-phone-restoration';
-import { PhoneHost } from './phone-host.js?v=20261009-phone-restoration';
-import { inputFresh, pauseReason } from './safety.js?v=20261009-phone-restoration';
+import { config, objects, gameModes } from './config.js?v=20261009-audio-gift';
+import { VBFInput, TiltInput, clamp } from './input.js?v=20261009-audio-gift';
+import { SeesawGame, toCSV } from './game.js?v=20261009-audio-gift';
+import { BodyInput, BodyCamera } from './body.js?v=20261009-audio-gift';
+import { renderObject } from './art.js?v=20261009-audio-gift';
+import { loadImage, drawCrop, saveCanvas } from './images.js?v=20261009-audio-gift';
+import { giftData, drawGift, resultText } from './gift.js?v=20261009-audio-gift';
+import { PhoneHost } from './phone-host.js?v=20261009-audio-gift';
+import { inputFresh, pauseReason } from './safety.js?v=20261009-audio-gift';
+import { GameAudio, phrases } from './audio.js?v=20261009-audio-gift';
+import { GiftEditor } from './gift-editor.js?v=20261009-audio-gift';
 const $ = id => document.getElementById(id);
+const audio = new GameAudio(globalThis,text => $('audio-status').textContent=text);
+const giftEditor = new GiftEditor(() => discardImages());
+let duration = 30;
 let difficulty = 'easy', mode = 'phone', phase = 'setup', game = null, paused = false;
 let needsCenter = false, accumulator = 0, previous = 0, wakeLock = null, requestingLock = false;
 let testAngle = 0, connectionVersion = 0, connectionTimer, trialMetadata;
@@ -38,6 +43,7 @@ const phoneHost = new PhoneHost({
 const input = () => mode === 'phone' ? phoneHost.input : mode === 'test' ? testInput : mode === 'body' ? bodyInput : tiltInput;
 const fresh = () => inputFresh(input(), mode, performance.now());
 function show(next) {
+  if (phase === 'gift' && next !== 'gift') giftEditor.close();
   phase = next; document.body.classList.toggle('playing',next === 'play');
   for (const name of ['setup', 'play', 'result', 'gift']) $(name).hidden = name !== next;
   $('test-controls').hidden = mode !== 'test' || !['setup','play'].includes(next);
@@ -59,12 +65,13 @@ async function acquireWakeLock() {
 function releaseWakeLock() { const lock = wakeLock; wakeLock = null; lock?.release().catch(() => {}); }
 function pause(reason) {
   if (phase !== 'play') return;
-  paused = true; game.paused = true; accumulator = 0; releaseWakeLock();
+  audio.stop(); paused = true; game.paused = true; accumulator = 0; releaseWakeLock();
   $('pause-panel').hidden = false; $('pause-reason').textContent = reason;
   $('reset-center').hidden = !needsCenter || mode === 'phone';
   $('resume').hidden = needsCenter && mode !== 'phone';
 }
 function resume(recenter = false) {
+  audio.unlock();
   if (!fresh()) { $('pause-reason').textContent = mode === 'body' ? '肩と腰がカメラに映るまで待ってね。' : 'センサーの入力を待っています。端末とブラウザーの許可を確認してください。'; return; }
   if (mode === 'phone' && !input().calibrated) { $('pause-reason').textContent = 'スマホで「まんなかにする」を押してください。'; return; }
   if (recenter) { input().calibrate(); needsCenter = false; }
@@ -73,7 +80,7 @@ function resume(recenter = false) {
   acquireWakeLock();
 }
 function prepare() {
-  giftVersion++; game = null; paused = false; releaseWakeLock(); show('setup');
+  audio.stop(); giftVersion++; game = null; paused = false; releaseWakeLock(); show('setup');
   $('pause-panel').hidden = true;
   $('status').textContent = mode === 'body' ? '① カメラをつかう → ② まんなかにしてね。' : '固定をたしかめて、まんなかにしてね。';
   if (mode !== 'phone') input().calibrated = false; $('start').disabled = true;
@@ -118,10 +125,10 @@ document.querySelectorAll('[data-level]').forEach(button => button.addEventListe
 $('start').addEventListener('click', () => {
   if (!fresh() || !input().calibrated) { $('status').textContent = '入力を確認して、まんなかを設定してね。'; return; }
   if (objectType.startsWith('MY_') && !images[objectType]) { $('status').textContent = '写真や作品をえらんでね。'; return; }
-  stopPhoto(); game = new SeesawGame(difficulty, { gameMode, objectType, inputMode: mode });
+  audio.unlock(); audio.reset(); stopPhoto(); game = new SeesawGame(difficulty, { gameMode, objectType, inputMode: mode, duration });
   renderObject($('egg'),objectType,images[objectType]); paused = false; needsCenter = false;
   trialMetadata = { startedAt: new Date().toISOString(), inputMode: mode, baselineAngle: input().baselineAngle,
-    roomId: mode === 'phone' ? phoneHost.room : null, controllerInputType: mode === 'phone' ? input().inputType : null, controllerCalibrationKey: mode === 'phone' ? phoneHost.calibrationKey() : null, gameMode, objectType, sensitivity: bodyInput.sensitivity, inputInverted: mode === 'body' && bodyInput.invert, filterAlpha: config.alpha, sampleInterval: config.sampleInterval, difficulty, settings: { ...game.settings } };
+    roomId: mode === 'phone' ? phoneHost.room : null, controllerInputType: mode === 'phone' ? input().inputType : null, controllerCalibrationKey: mode === 'phone' ? phoneHost.calibrationKey() : null, gameMode, objectType, configuredDuration: duration, sensitivity: bodyInput.sensitivity, inputInverted: mode === 'body' && bodyInput.invert, filterAlpha: config.alpha, sampleInterval: config.sampleInterval, difficulty, settings: { ...game.settings } };
   accumulator = 0; previous = performance.now(); show('play'); acquireWakeLock(); render();
 });
 $('pause').addEventListener('click', () => pause('準備ができたら、つづけよう。'));
@@ -133,7 +140,7 @@ $('reset-center').addEventListener('click', () => {
 $('quit').addEventListener('click', prepare);
 $('again').addEventListener('click', prepare);
 document.addEventListener('visibilitychange', () => { if (document.hidden) pause('画面をはなれたので、おやすみしています。'); });
-window.addEventListener('pagehide', () => { phoneHost.stop(); clearInterval(feedbackTimer); releaseWakeLock(); bodyCamera.disconnect(); tiltInput.disconnect(); stopPhoto(); });
+window.addEventListener('pagehide', () => { audio.stop(); phoneHost.stop(); clearInterval(feedbackTimer); releaseWakeLock(); bodyCamera.disconnect(); tiltInput.disconnect(); stopPhoto(); });
 $('tilt').addEventListener('input', () => { testAngle = Number($('tilt').value); });
 window.addEventListener('keydown', event => {
   if (mode !== 'test' || !['setup','play'].includes(phase) || !['ArrowLeft', 'ArrowRight', 'Space'].includes(event.code)) return;
@@ -151,7 +158,7 @@ function render() {
   $('egg').style.left = `${50 + game.position * 50}%`;
   const falling = game.respawn > 0;
   const fallProgress = falling ? 1 - game.respawn / config.respawnSeconds : 0;
-  $('egg').style.transform = `translate(-50%, ${fallProgress * 230}px) rotate(${game.position * 24}deg)`;
+  $('egg').style.transform = `translate(-50%, ${fallProgress * 230}px) rotate(${['BALL','SOCCER_BALL','BASKETBALL'].includes(objectType) ? game.rotation : game.position * 24}deg)`;
   $('egg').style.opacity = String(1 - fallProgress);
   $('time-label').textContent = gameMode === 'SURVIVAL' ? 'いま' : 'あと';
   $('score-hud').hidden = gameMode === 'SURVIVAL';
@@ -167,7 +174,7 @@ function finish() {
   show('result');
   const data = giftData(game);
   $('total-stars').textContent = resultText(data);
-  const perfect = gameMode === 'KEEP' && game.drops === 0 || gameMode === 'SURVIVAL' && game.elapsed >= 60 - 1e-8;
+  const perfect = gameMode === 'KEEP' && game.drops === 0 || gameMode === 'SURVIVAL' && game.elapsed >= game.duration - 1e-8;
   $('result').classList.toggle('perfect',perfect);
   $('result-title').textContent = perfect ? 'だいせいこう！' : 'よく がんばったね！';
   $('result-message').textContent = gameMode === 'SURVIVAL' && !perfect ? 'もういちど、チャレンジ！' : `${objects[objectType].label}と なかよくなれたね。`;
@@ -198,7 +205,7 @@ function frame(now) {
     else {
       accumulator += Math.max(0, dt);
       while (accumulator >= config.step && !game.done) { game.step(config.step, input().read()); accumulator -= config.step; }
-      render();
+      audio.update(game); render();
       if (game.done) finish();
     }
   }
@@ -218,6 +225,7 @@ function chooseObject(type) {
   document.querySelectorAll('[data-object]').forEach(b => b.setAttribute('aria-pressed',String(b.dataset.object === type)));
 }
 for (const [type,info] of Object.entries(objects)) {
+  if (info.legacy) continue;
   const button = document.createElement('button'); button.dataset.object = type; button.setAttribute('aria-pressed',String(type === objectType));
   const preview = document.createElement('span');
   if (type.startsWith('MY_')) { preview.className = 'custom-icon'; preview.textContent = type === 'MY_FACE' ? '☺' : type === 'MY_DRAWING' ? '✎' : '▧'; }
@@ -227,9 +235,11 @@ for (const [type,info] of Object.entries(objects)) {
 document.querySelectorAll('[data-game-mode]').forEach(button => button.addEventListener('click',() => {
   gameMode = button.dataset.gameMode;
   document.querySelectorAll('[data-game-mode]').forEach(b => b.setAttribute('aria-pressed',String(b === button)));
-  $('duration-label').textContent = `${gameModes[gameMode].duration}びょう`; updateSetupArt();
+  updateSetupArt();
 }));
-$('other-game').addEventListener('click',prepare);
+$('other-game').addEventListener('click',() => { discardImages(); prepare(); });
+$('result-new-participant').addEventListener('click',() => { discardImages(); prepare(); });
+$('new-participant').addEventListener('click',() => { discardImages(); prepare(); });
 for (const id of ['preview-visible','preview-mirror']) $(id).addEventListener('change',updatePreview);
 $('skeleton').addEventListener('change',() => { bodyCamera.skeleton = $('skeleton').checked; });
 $('axis-debug').addEventListener('change',() => { bodyCamera.debug = $('axis-debug').checked; });
@@ -284,38 +294,40 @@ $('use-image').addEventListener('click',() => {
   $('image-status').textContent = 'この画像であそべるよ！画像はページを閉じると消えます。';
 });
 function discardImages() {
-  imageVersion++; giftVersion++; stopPhoto(); images = {}; cropSource = null; cropType = null;
+  giftEditor.erase(); imageVersion++; giftVersion++; stopPhoto(); images = {}; cropSource = null; cropType = null;
   $('crop-preview').getContext('2d').clearRect(0,0,256,256); $('crop-preview').hidden = true; $('crop-controls').hidden = true;
   for (const type of ['MY_FACE','MY_DRAWING','MY_PHOTO']) { const preview = document.querySelector(`[data-object="${type}"]`).firstChild; preview.replaceChildren(); preview.className = 'custom-icon'; preview.textContent = '＋'; }
   $('image-status').textContent = '写真と作品を消しました。'; updateSetupArt();
   if (game) renderObject($('result-object'),objectType);
-  $('gift-canvas').getContext('2d').clearRect(0,0,720,1080); $('gift-save').disabled = true;
+  renderObject($('egg'),objectType); $('gift-canvas').getContext('2d').clearRect(0,0,$('gift-canvas').width,$('gift-canvas').height); $('gift-save').disabled = true;
 }
 $('discard-images').addEventListener('click',discardImages);
-async function openGift() {
-  const version = ++giftVersion; show('gift'); $('gift-save').disabled = true; $('gift-status').textContent = 'つくっています…';
-  try {
-    const data = giftData(game,images); const canvas = document.createElement('canvas'); await drawGift(canvas,data);
-    if (version !== giftVersion || phase !== 'gift') return;
-    $('gift-canvas').getContext('2d').drawImage(canvas,0,0); $('gift-save').disabled = false; $('gift-status').textContent = 'できた！PNGを保存できるよ。';
-    // In-memory integration interface; photos never enter a URL, research data, or a network request.
-    window.dispatchEvent(new CustomEvent('photo-gift:preview',{detail:data}));
-  } catch { if (version === giftVersion) $('gift-status').textContent = 'プレビューを作れませんでした。結果にもどって、もういちど試してね。'; }
-}
+function openGift() { show('gift'); const data=giftData(game,images); giftEditor.open(data); window.dispatchEvent(new CustomEvent('photo-gift:preview',{detail:data})); }
 $('gift-open').addEventListener('click',openGift);
-$('gift-back').addEventListener('click',() => { giftVersion++; show('result'); });
-$('gift-save').addEventListener('click',async () => { try { await saveCanvas($('gift-canvas'),'kaze-ni-tatsu-2026-10-18.png'); } catch (error) { $('gift-status').textContent = error.message; } });
-$('gift-discard').addEventListener('click',() => { discardImages(); openGift(); });
+$('gift-back').addEventListener('click',() => show('result'));
+$('play-duration').addEventListener('input',() => { duration=Number($('play-duration').value); updateSetupArt(); });
+for (const phrase of phrases) { const option=document.createElement('option');option.textContent=phrase;$('audio-phrase').append(option); }
+function syncAudio() {
+  const s=audio.settings;$('audio-effects').checked=s.effects;$('audio-alert').value=s.alert;$('audio-effects-volume').value=s.effectsVolume*100;
+  $('audio-voice').checked=s.voice;$('audio-voice-mode').value=s.voiceMode;$('audio-phrase').value=s.phrase;$('audio-event').value=s.voiceEvent;$('audio-voice-volume').value=s.voiceVolume*100;
+}
+syncAudio();
+function changeAudio() { audio.configure({effects:$('audio-effects').checked,alert:$('audio-alert').value,effectsVolume:Number($('audio-effects-volume').value)/100,voice:$('audio-voice').checked,voiceMode:$('audio-voice-mode').value,phrase:$('audio-phrase').value,voiceEvent:$('audio-event').value,voiceVolume:Number($('audio-voice-volume').value)/100}); }
+for (const id of ['audio-effects','audio-alert','audio-effects-volume','audio-voice','audio-voice-mode','audio-phrase','audio-event','audio-voice-volume']) $(id).addEventListener('input',changeAudio);
+$('audio-test').onclick=async()=>{await audio.unlock();audio.tone(audio.settings.alert);};
+$('audio-voice-test').onclick=async()=>{await audio.unlock();audio.voice('danger',Infinity,true);};
 
 function updateSetupArt() {
+  $('duration-label').textContent = $('play-duration-value').textContent = `${duration}びょう`;
+  document.querySelectorAll('[data-game-mode] small').forEach(e => e.textContent=`${duration}びょう`);
   $('object-title').textContent = `${objects[objectType].label}を落とすな！`;
   document.title = `シーソーゲーム | ${objects[objectType].label}を落とすな！`;
-  $('intro-message').textContent = gameMode === 'STAR' ? 'まんなかで、星を集めよう！' : `${objects[objectType].label}を落とさず、${gameMode === 'KEEP' ? '30びょう守ろう！' : 'どこまで耐えられるかな？'}`;
+  $('intro-message').textContent = gameMode === 'STAR' ? 'まんなかで、星を集めよう！' : `${objects[objectType].label}を落とさず、${gameMode === 'KEEP' ? `${duration}びょう守ろう！` : 'どこまで耐えられるかな？'}`;
   renderObject($('setup-object'),objectType,images[objectType]);
 }
 updateSetupArt();
 
 const feedbackTimer = setInterval(() => { if (mode === 'phone') phoneHost.feedback({ phase, paused, objectLabel: objects[objectType].label, canStart: fresh() && input().calibrated }); },500);
 phoneHost.start();
-$('mode').disabled = false; $('game-mode').disabled = false; $('difficulty').disabled = false;
+$('play-duration').disabled = false; $('mode').disabled = false; $('game-mode').disabled = false; $('difficulty').disabled = false;
 document.body.dataset.appReady = 'true';
